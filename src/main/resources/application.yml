@@ -7,6 +7,8 @@
 server:
   port: 8080
 
+# 자꾸 오류나서 내 로컬 디비 값 여기 그냥 써둠... 급하게 처리하느라 여기 써둔다.sorry 지워도 돼...
+
 spring:
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
