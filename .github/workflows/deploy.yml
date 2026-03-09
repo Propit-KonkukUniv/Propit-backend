@@ -48,15 +48,15 @@ jobs:
           username: ubuntu
           key: ${{ secrets.REMOTE_SSH_KEY }}
           port: 22
-          script: >
-            docker stop propit-server || true &&
-            docker rm propit-server || true &&
-            docker pull ${{ secrets.DOCKER_USERNAME }}/propit-server:latest &&
-            
-            docker run -d -p 8080:8080
-            -e SPRING_PROFILES_ACTIVE=prod
-            -e DB_URL=${{ secrets.DB_URL }}
-            -e DB_USER=${{ secrets.DB_USER }}
-            -e DB_PASSWORD=${{ secrets.DB_PASSWORD }}
-            --name propit-server
-            ${{ secrets.DOCKER_USERNAME }}/propit-server:latest
+          script: |
+            docker stop propit-server || true
+            docker rm propit-server || true
+            docker pull ${{ secrets.DOCKER_USERNAME }}/propit-server:latest
+
+            docker run -d -p 8080:8080 -\
+              --name propit-server \
+              -e SPRING_PROFILES_ACTIVE=prod \
+              -e DB_URL=${{ secrets.DB_URL }} \
+              -e DB_USER=${{ secrets.DB_USER }} \
+              -e DB_PASSWORD=${{ secrets.DB_PASSWORD }} \
+              ${{ secrets.DOCKER_USERNAME }}/propit-server:latest
