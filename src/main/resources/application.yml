@@ -1,8 +1,8 @@
 spring:
+  profiles:
+    active: prod
+
   config:
     import:
       - optional:classpath:config.environments/common.yml
       - optional:classpath:config.environments/${spring.profiles.active}.yml
-
-server:
-  port: 8080
