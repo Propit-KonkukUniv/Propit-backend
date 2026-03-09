@@ -13,5 +13,5 @@ spring:
       ddl-auto: validate
 
   flyway:
-    enabled: true
+    enabled: none
     baseline-on-migrate: true
