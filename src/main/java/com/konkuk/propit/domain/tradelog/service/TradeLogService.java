@@ -3,6 +3,7 @@ package com.konkuk.propit.domain.tradelog.service;
 import com.konkuk.propit.domain.emotion.entity.Emotion;
 import com.konkuk.propit.domain.emotion.repository.EmotionRepository;
 import com.konkuk.propit.domain.tradelog.dto.request.CreateTradeLogRequest;
+import com.konkuk.propit.domain.tradelog.dto.request.UpdateTradeLogRequest;
 import com.konkuk.propit.domain.tradelog.entity.TradeEmotion;
 import com.konkuk.propit.domain.tradelog.entity.TradeLog;
 import com.konkuk.propit.domain.tradelog.repository.TradeLogRepository;
@@ -64,5 +65,44 @@ public class TradeLogService {
         }
 
         tradeLogRepository.save(tradeLog);
+    }
+
+    public void updateTradeLog(Long tradeLogId, UpdateTradeLogRequest request) {
+
+        TradeLog tradeLog = tradeLogRepository.findById(tradeLogId)
+                .orElseThrow(() -> new RuntimeException("TradeLog not found"));
+
+        // 기본 필드 수정
+        tradeLog.update(
+                request.sellDate(),
+                request.stockName(),
+                request.buyPrice(),
+                request.sellPrice(),
+                request.quantity(),
+                request.holdingDays(),
+                request.reason()
+        );
+
+        // 수익 재계산
+        tradeLog.calculateProfit();
+
+        // 기존 감정 삭제 (orphanRemoval=true 이므로 clear만 하면 됨)
+        tradeLog.getTradeEmotions().clear();
+
+        // 감정 다시 매핑
+        if (request.emotionTags() != null) {
+            for (String tag : request.emotionTags()) {
+
+                Emotion emotion = emotionRepository.findByName(tag)
+                        .orElseThrow(() -> new RuntimeException("Emotion not found: " + tag));
+
+                TradeEmotion tradeEmotion = TradeEmotion.builder()
+                        .tradeLog(tradeLog)
+                        .emotion(emotion)
+                        .build();
+
+                tradeLog.getTradeEmotions().add(tradeEmotion);
+            }
+        }
     }
 }

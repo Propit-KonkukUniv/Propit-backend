@@ -74,4 +74,22 @@ public class TradeLog {
         this.profitAmount = totalSell - totalBuy;
         this.profitRate = (double) this.profitAmount / totalBuy * 100;
     }
+
+    public void update(
+            LocalDate sellDate,
+            String stockName,
+            Long buyPrice,
+            Long sellPrice,
+            Integer quantity,
+            Integer holdingDays,
+            String reason
+    ) {
+        this.sellDate = sellDate;
+        this.stockName = stockName;
+        this.buyPrice = buyPrice;
+        this.sellPrice = sellPrice;
+        this.quantity = quantity;
+        this.holdingDays = holdingDays;
+        this.reason = reason;
+    }
 }
