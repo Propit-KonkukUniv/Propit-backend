@@ -1,8 +1,4 @@
 spring:
   profiles:
-    active: prod
-
-  config:
-    import:
-      - optional:classpath:config.environments/common.yml
-      - optional:classpath:config.environments/${spring.profiles.active}.yml
+    active: ${SPRING_PROFILES_ACTIVE:local}
+    include : common
