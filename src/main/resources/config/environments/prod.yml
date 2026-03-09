@@ -1,7 +1,17 @@
+server:
+  port: ${PORT:8080}
+
 spring:
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:${DB_URL}
+    username: ${DB_USER}
+    password: ${DB_PASSWORD}
+
   jpa:
     hibernate:
       ddl-auto: validate
 
   flyway:
     enabled: true
+    baseline-on-migrate: true
