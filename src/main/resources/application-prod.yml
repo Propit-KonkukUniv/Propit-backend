@@ -15,3 +15,15 @@ spring:
   flyway:
     enabled: true
     baseline-on-migrate: true
+
+  data:
+    redis:
+      host: ${REDIS_HOST}
+      port: ${REDIS_PORT}
+
+security:
+  jwt:
+    token:
+      secret-key: ${JWT_SECRET}
+      access-expire: ${JWT_ACCESS_EXPIRE}
+      refresh-expire: ${JWT_REFRESH_EXPIRE}
