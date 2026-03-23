@@ -9,6 +9,8 @@ import com.konkuk.propit.domain.tradelog.entity.TradeLog;
 import com.konkuk.propit.domain.tradelog.repository.TradeLogRepository;
 import com.konkuk.propit.domain.user.entity.User;
 import com.konkuk.propit.domain.user.repository.UserRepository;
+import com.konkuk.propit.global.exception.BaseException;
+import com.konkuk.propit.global.exception.code.ErrorCode;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -27,7 +29,7 @@ public class TradeLogService {
 
         // 임시 사용자 (id=1 고정)
         User user = userRepository.findById(1L)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+                .orElseThrow(() -> new BaseException(ErrorCode.USER_NOT_FOUND));
 
         // S3 안 쓰므로 이미지 URL 하드코딩
         String imageUrl = "https://dummy-image.com/default.png";
@@ -53,7 +55,7 @@ public class TradeLogService {
             for (String tag : request.emotionTags()) {
 
                 Emotion emotion = emotionRepository.findByName(tag)
-                        .orElseThrow(() -> new RuntimeException("Emotion not found: " + tag));
+                        .orElseThrow(() -> new BaseException(ErrorCode.EMOTION_NOT_FOUND));
 
                 TradeEmotion tradeEmotion = TradeEmotion.builder()
                         .tradeLog(tradeLog)
@@ -70,7 +72,7 @@ public class TradeLogService {
     public void updateTradeLog(Long tradeLogId, UpdateTradeLogRequest request) {
 
         TradeLog tradeLog = tradeLogRepository.findById(tradeLogId)
-                .orElseThrow(() -> new RuntimeException("TradeLog not found"));
+                .orElseThrow(() -> new BaseException(ErrorCode.TRADELOG_NOT_FOUND));
 
         // 기본 필드 수정
         tradeLog.update(
@@ -94,7 +96,7 @@ public class TradeLogService {
             for (String tag : request.emotionTags()) {
 
                 Emotion emotion = emotionRepository.findByName(tag)
-                        .orElseThrow(() -> new RuntimeException("Emotion not found: " + tag));
+                        .orElseThrow(() -> new BaseException(ErrorCode.EMOTION_NOT_FOUND));
 
                 TradeEmotion tradeEmotion = TradeEmotion.builder()
                         .tradeLog(tradeLog)

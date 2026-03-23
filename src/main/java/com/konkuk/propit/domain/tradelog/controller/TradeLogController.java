@@ -9,6 +9,9 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 import com.konkuk.propit.global.common.ApiResponse;
 
+import static com.konkuk.propit.global.response.SuccessCode.TRADELOG_CREATE_SUCCESS;
+import static com.konkuk.propit.global.response.SuccessCode.TRADELOG_UPDATE_SUCCESS;
+
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/tradelogs")
@@ -17,28 +20,24 @@ public class TradeLogController {
     private final TradeLogService tradeLogService;
 
     @PostMapping(consumes = {"multipart/form-data"})
-    public ResponseEntity<?> createTradeLog(
+    public ResponseEntity<ApiResponse<Void>> createTradeLog(
             @RequestPart("data") CreateTradeLogRequest request,
             @RequestPart(value = "image", required = false) MultipartFile image
     ) {
 
         tradeLogService.createTradeLog(request, image);
 
-        return ResponseEntity.ok().body(
-                new ApiResponse(true, 20000, "요청에 성공했습니다.")
-        );
+        return ResponseEntity.ok().body(ApiResponse.success(TRADELOG_CREATE_SUCCESS, null));
     }
 
     @PutMapping("/{tradeLogId}")
-    public ResponseEntity<?> updateTradeLog(
+    public ResponseEntity<ApiResponse<Void>> updateTradeLog(
             @PathVariable Long tradeLogId,
             @RequestBody UpdateTradeLogRequest request
     ) {
 
         tradeLogService.updateTradeLog(tradeLogId, request);
 
-        return ResponseEntity.ok(
-                new ApiResponse(true, 20000, "요청에 성공했습니다.")
-        );
+        return ResponseEntity.ok().body(ApiResponse.success(TRADELOG_UPDATE_SUCCESS, null));
     }
 }
