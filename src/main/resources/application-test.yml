@@ -15,6 +15,6 @@ spring:
 security:
   jwt:
     token:
-      secret-key: test-secret-key-1234567890
+      secret-key: my-test-server-test-secret-key-12345678910
       access-expire: 3600000
       refresh-expire: 1209600000
