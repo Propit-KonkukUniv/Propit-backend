@@ -11,3 +11,10 @@ spring:
 
   flyway:
     enabled: false
+
+security:
+  jwt:
+    token:
+      secret-key: test-secret-key-1234567890
+      access-expire: 3600000
+      refresh-expire: 1209600000
