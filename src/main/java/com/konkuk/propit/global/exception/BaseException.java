@@ -1,0 +1,15 @@
+package com.konkuk.propit.global.exception;
+
+import com.konkuk.propit.global.exception.code.ErrorCode;
+import lombok.Getter;
+
+@Getter
+public class BaseException extends RuntimeException {
+
+    private final ErrorCode errorCode;
+
+    public BaseException(ErrorCode errorCode) {
+        super(errorCode.getMessage());
+        this.errorCode = errorCode;
+    }
+}
