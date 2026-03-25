@@ -14,6 +14,7 @@ import com.konkuk.propit.domain.user.repository.UserRepository;
 import com.konkuk.propit.global.exception.BaseException;
 import com.konkuk.propit.global.exception.code.ErrorCode;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -124,7 +125,9 @@ public class TradeLogService {
     @Transactional(readOnly = true)
     public List<TradeLogSummaryResponse> getTradeLogs() {
 
-        List<TradeLog> tradeLogs = tradeLogRepository.findAll();
+        List<TradeLog> tradeLogs = tradeLogRepository.findAll(
+                Sort.by(Sort.Direction.DESC, "sellDate")
+        );
 
         return tradeLogs.stream()
                 .map(TradeLogSummaryResponse::from)
