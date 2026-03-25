@@ -63,4 +63,15 @@ public class TradeLogController {
         return ResponseEntity.ok()
                 .body(ApiResponse.success(TRADELOG_LIST_SUCCESS, response));
     }
+
+    @DeleteMapping("/{tradeLogId}")
+    public ResponseEntity<ApiResponse<Void>> deleteTradeLog(
+            @PathVariable Long tradeLogId
+    ) {
+
+        tradeLogService.deleteTradeLog(tradeLogId);
+
+        return ResponseEntity.ok()
+                .body(ApiResponse.success(TRADELOG_DELETE_SUCCESS, null));
+    }
 }
