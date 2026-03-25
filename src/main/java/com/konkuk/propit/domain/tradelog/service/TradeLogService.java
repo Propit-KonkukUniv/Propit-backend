@@ -4,6 +4,7 @@ import com.konkuk.propit.domain.emotion.entity.Emotion;
 import com.konkuk.propit.domain.emotion.repository.EmotionRepository;
 import com.konkuk.propit.domain.tradelog.dto.request.CreateTradeLogRequest;
 import com.konkuk.propit.domain.tradelog.dto.request.UpdateTradeLogRequest;
+import com.konkuk.propit.domain.tradelog.dto.response.TradeLogDetailResponse;
 import com.konkuk.propit.domain.tradelog.entity.TradeEmotion;
 import com.konkuk.propit.domain.tradelog.entity.TradeLog;
 import com.konkuk.propit.domain.tradelog.repository.TradeLogRepository;
@@ -106,5 +107,14 @@ public class TradeLogService {
                 tradeLog.getTradeEmotions().add(tradeEmotion);
             }
         }
+    }
+
+    @Transactional(readOnly = true)
+    public TradeLogDetailResponse getTradeLogDetail(Long tradeLogId) {
+
+        TradeLog tradeLog = tradeLogRepository.findById(tradeLogId)
+                .orElseThrow(() -> new BaseException(ErrorCode.TRADELOG_NOT_FOUND));
+
+        return TradeLogDetailResponse.from(tradeLog);
     }
 }
