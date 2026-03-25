@@ -133,4 +133,12 @@ public class TradeLogService {
                 .map(TradeLogSummaryResponse::from)
                 .toList();
     }
+
+    public void deleteTradeLog(Long tradeLogId) { // Todo 이미지 추가되면 이미지도 삭제
+
+        TradeLog tradeLog = tradeLogRepository.findById(tradeLogId)
+                .orElseThrow(() -> new BaseException(ErrorCode.TRADELOG_NOT_FOUND));
+
+        tradeLogRepository.delete(tradeLog);
+    }
 }
