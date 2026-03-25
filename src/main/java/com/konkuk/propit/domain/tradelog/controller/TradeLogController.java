@@ -2,6 +2,7 @@ package com.konkuk.propit.domain.tradelog.controller;
 
 import com.konkuk.propit.domain.tradelog.dto.request.CreateTradeLogRequest;
 import com.konkuk.propit.domain.tradelog.dto.request.UpdateTradeLogRequest;
+import com.konkuk.propit.domain.tradelog.dto.response.TradeLogDetailResponse;
 import com.konkuk.propit.domain.tradelog.service.TradeLogService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -9,8 +10,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 import com.konkuk.propit.global.common.ApiResponse;
 
-import static com.konkuk.propit.global.response.SuccessCode.TRADELOG_CREATE_SUCCESS;
-import static com.konkuk.propit.global.response.SuccessCode.TRADELOG_UPDATE_SUCCESS;
+import static com.konkuk.propit.global.response.SuccessCode.*;
 
 @RestController
 @RequiredArgsConstructor
@@ -39,5 +39,16 @@ public class TradeLogController {
         tradeLogService.updateTradeLog(tradeLogId, request);
 
         return ResponseEntity.ok().body(ApiResponse.success(TRADELOG_UPDATE_SUCCESS, null));
+    }
+
+    @GetMapping("/{tradeLogId}")
+    public ResponseEntity<ApiResponse<TradeLogDetailResponse>> getTradeLogDetail(
+            @PathVariable Long tradeLogId
+    ) {
+
+        TradeLogDetailResponse response = tradeLogService.getTradeLogDetail(tradeLogId);
+
+        return ResponseEntity.ok()
+                .body(ApiResponse.success(TRADELOG_DETAIL_SUCCESS, response));
     }
 }
