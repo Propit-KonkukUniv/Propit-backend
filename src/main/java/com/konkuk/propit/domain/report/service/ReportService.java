@@ -1,6 +1,5 @@
 package com.konkuk.propit.domain.report.service;
 
-import com.konkuk.propit.domain.report.dto.*;
 import com.konkuk.propit.domain.report.dto.response.DailyReportResponse;
 import com.konkuk.propit.domain.tradelog.entity.TradeLog;
 import com.konkuk.propit.domain.tradelog.repository.TradeLogRepository;

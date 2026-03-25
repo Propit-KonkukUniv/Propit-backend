@@ -1,6 +1,5 @@
 package com.konkuk.propit.domain.report.controller;
 
-import com.konkuk.propit.domain.report.dto.*;
 import com.konkuk.propit.domain.report.dto.request.DailyReportRequest;
 import com.konkuk.propit.domain.report.dto.response.DailyReportResponse;
 import com.konkuk.propit.domain.report.service.ReportService;
