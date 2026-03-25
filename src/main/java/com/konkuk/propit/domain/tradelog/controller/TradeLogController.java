@@ -3,12 +3,15 @@ package com.konkuk.propit.domain.tradelog.controller;
 import com.konkuk.propit.domain.tradelog.dto.request.CreateTradeLogRequest;
 import com.konkuk.propit.domain.tradelog.dto.request.UpdateTradeLogRequest;
 import com.konkuk.propit.domain.tradelog.dto.response.TradeLogDetailResponse;
+import com.konkuk.propit.domain.tradelog.dto.response.TradeLogSummaryResponse;
 import com.konkuk.propit.domain.tradelog.service.TradeLogService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 import com.konkuk.propit.global.common.ApiResponse;
+
+import java.util.List;
 
 import static com.konkuk.propit.global.response.SuccessCode.*;
 
@@ -50,5 +53,14 @@ public class TradeLogController {
 
         return ResponseEntity.ok()
                 .body(ApiResponse.success(TRADELOG_DETAIL_SUCCESS, response));
+    }
+
+    @GetMapping
+    public ResponseEntity<ApiResponse<List<TradeLogSummaryResponse>>> getTradeLogs() {
+
+        List<TradeLogSummaryResponse> response = tradeLogService.getTradeLogs();
+
+        return ResponseEntity.ok()
+                .body(ApiResponse.success(TRADELOG_LIST_SUCCESS, response));
     }
 }
