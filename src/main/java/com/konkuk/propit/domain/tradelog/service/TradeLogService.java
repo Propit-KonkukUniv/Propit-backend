@@ -5,6 +5,7 @@ import com.konkuk.propit.domain.emotion.repository.EmotionRepository;
 import com.konkuk.propit.domain.tradelog.dto.request.CreateTradeLogRequest;
 import com.konkuk.propit.domain.tradelog.dto.request.UpdateTradeLogRequest;
 import com.konkuk.propit.domain.tradelog.dto.response.TradeLogDetailResponse;
+import com.konkuk.propit.domain.tradelog.dto.response.TradeLogSummaryResponse;
 import com.konkuk.propit.domain.tradelog.entity.TradeEmotion;
 import com.konkuk.propit.domain.tradelog.entity.TradeLog;
 import com.konkuk.propit.domain.tradelog.repository.TradeLogRepository;
@@ -16,6 +17,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
+
+import java.util.List;
 
 @Service
 @RequiredArgsConstructor
@@ -116,5 +119,15 @@ public class TradeLogService {
                 .orElseThrow(() -> new BaseException(ErrorCode.TRADELOG_NOT_FOUND));
 
         return TradeLogDetailResponse.from(tradeLog);
+    }
+
+    @Transactional(readOnly = true)
+    public List<TradeLogSummaryResponse> getTradeLogs() {
+
+        List<TradeLog> tradeLogs = tradeLogRepository.findAll();
+
+        return tradeLogs.stream()
+                .map(TradeLogSummaryResponse::from)
+                .toList();
     }
 }
