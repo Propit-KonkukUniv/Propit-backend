@@ -1,6 +1,5 @@
 package com.konkuk.propit.global.ai.service;
 
-import com.konkuk.propit.global.ai.dto.*;
 import com.konkuk.propit.global.ai.dto.request.OpenAiRequest;
 import com.konkuk.propit.global.ai.dto.response.OpenAiResponse;
 import lombok.RequiredArgsConstructor;
