@@ -1,10 +1,13 @@
 package com.konkuk.propit.domain.report.service;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.konkuk.propit.domain.report.dto.response.AiGeneratedResult;
 import com.konkuk.propit.domain.report.dto.response.DailyReportResponse;
 import com.konkuk.propit.domain.tradelog.entity.TradeLog;
 import com.konkuk.propit.domain.tradelog.repository.TradeLogRepository;
 import com.konkuk.propit.domain.user.entity.User;
 import com.konkuk.propit.domain.user.repository.UserRepository;
+import com.konkuk.propit.global.ai.service.OpenAiService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -18,6 +21,8 @@ public class ReportService {
 
     private final TradeLogRepository tradeLogRepository;
     private final UserRepository userRepository;
+    private final OpenAiService openAiService;
+    private final ObjectMapper objectMapper;
 
     public DailyReportResponse generateDailyReport(LocalDate date) {
 
@@ -74,25 +79,76 @@ public class ReportService {
                                 )
                         ).toList();
 
-        // Todo AI Insight (지금은 mock)
-        DailyReportResponse.AiInsight insight =
-                new DailyReportResponse.AiInsight(
-                        "장기 보유 전략이 유리합니다.",
-                        "불안 감정에서 손절 타이밍이 늦습니다.",
-                        "최근 오후 시간대 손실이 많습니다."
-                );
+        // 1. 프롬프트 생성
+        String prompt = buildPrompt(summary, emotionAnalysisList);
 
-        List<String> advice = List.of(
-                "오늘은 변동성이 크니 신중하세요.",
-                "감정 기반 매매를 줄여보세요."
-        );
+        // 2. OpenAI 호출
+        String aiRawJson = openAiService.requestDailyAnalysis(prompt);
+
+        // 3. JSON -> DTO 변환
+        AiGeneratedResult aiResult;
+
+        try {
+            aiResult = objectMapper.readValue(aiRawJson, AiGeneratedResult.class);
+        } catch (Exception e) {
+            throw new RuntimeException("AI 응답 파싱 실패", e);
+        }
 
         return new DailyReportResponse(
                 date,
                 summary,
-                emotionAnalysisList,
-                insight,
-                advice
+                emotionAnalysisList, // count는 서버 계산값 유지
+                new DailyReportResponse.AiInsight(
+                        aiResult.aiInsight().strengthPattern(),
+                        aiResult.aiInsight().improvementPoint(),
+                        aiResult.aiInsight().cautionTime()
+                ),
+                aiResult.todayAdvice()
+        );
+    }
+
+    private String buildPrompt(
+            DailyReportResponse.Summary summary,
+            List<DailyReportResponse.EmotionAnalysis> emotions
+    ) {
+
+        String emotionText = emotions.stream()
+                .map(e -> e.emotion() + " : " + e.count() + "회")
+                .reduce("", (a, b) -> a + "\n" + b);
+
+        return """
+            다음은 사용자의 하루 투자 요약 데이터입니다.
+
+            거래 수: %d
+            승률: %.2f%%
+            총 수익: %d
+            평균 수익률: %.2f%%
+
+            감정 통계:
+            %s
+
+            반드시 아래 JSON 형식으로만 응답하세요.
+
+            {
+              "emotionAnalysis": [
+                {
+                  "emotion": "",
+                  "analysis": ""
+                }
+              ],
+              "aiInsight": {
+                "strengthPattern": "",
+                "improvementPoint": "",
+                "cautionTime": ""
+              },
+              "todayAdvice": []
+            }
+            """.formatted(
+                summary.tradeCount(),
+                summary.winRate(),
+                summary.totalProfit(),
+                summary.averageProfitRate(),
+                emotionText
         );
     }
 }
