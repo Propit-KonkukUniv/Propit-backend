@@ -72,7 +72,11 @@ public class TradeLog {
         long totalSell = sellPrice * quantity;
 
         this.profitAmount = totalSell - totalBuy;
-        this.profitRate = (double) this.profitAmount / totalBuy * 100;
+        if (totalBuy == 0) {
+            this.profitRate = 0.0;
+        } else {
+            this.profitRate = (double) this.profitAmount / totalBuy * 100;
+        }
     }
 
     public void update(

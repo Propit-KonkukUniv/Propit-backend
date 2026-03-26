@@ -5,6 +5,7 @@ import com.konkuk.propit.domain.user.entity.User;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.List;
+import java.time.LocalDate;
 
 public interface TradeLogRepository extends JpaRepository<TradeLog, Long> {
 
@@ -13,4 +14,6 @@ public interface TradeLogRepository extends JpaRepository<TradeLog, Long> {
 
     // 최신순 조회
     List<TradeLog> findByUserOrderByCreatedAtDesc(User user);
+
+    List<TradeLog> findByUserAndSellDate(User user, LocalDate sellDate);
 }

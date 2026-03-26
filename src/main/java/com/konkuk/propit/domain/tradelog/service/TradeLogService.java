@@ -4,6 +4,8 @@ import com.konkuk.propit.domain.emotion.entity.Emotion;
 import com.konkuk.propit.domain.emotion.repository.EmotionRepository;
 import com.konkuk.propit.domain.tradelog.dto.request.CreateTradeLogRequest;
 import com.konkuk.propit.domain.tradelog.dto.request.UpdateTradeLogRequest;
+import com.konkuk.propit.domain.tradelog.dto.response.TradeLogDetailResponse;
+import com.konkuk.propit.domain.tradelog.dto.response.TradeLogSummaryResponse;
 import com.konkuk.propit.domain.tradelog.entity.TradeEmotion;
 import com.konkuk.propit.domain.tradelog.entity.TradeLog;
 import com.konkuk.propit.domain.tradelog.repository.TradeLogRepository;
@@ -12,9 +14,12 @@ import com.konkuk.propit.domain.user.repository.UserRepository;
 import com.konkuk.propit.global.exception.BaseException;
 import com.konkuk.propit.global.exception.code.ErrorCode;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
+
+import java.util.List;
 
 @Service
 @RequiredArgsConstructor
@@ -106,5 +111,34 @@ public class TradeLogService {
                 tradeLog.getTradeEmotions().add(tradeEmotion);
             }
         }
+    }
+
+    @Transactional(readOnly = true)
+    public TradeLogDetailResponse getTradeLogDetail(Long tradeLogId) {
+
+        TradeLog tradeLog = tradeLogRepository.findById(tradeLogId)
+                .orElseThrow(() -> new BaseException(ErrorCode.TRADELOG_NOT_FOUND));
+
+        return TradeLogDetailResponse.from(tradeLog);
+    }
+
+    @Transactional(readOnly = true)
+    public List<TradeLogSummaryResponse> getTradeLogs() {
+
+        List<TradeLog> tradeLogs = tradeLogRepository.findAll(
+                Sort.by(Sort.Direction.DESC, "sellDate")
+        );
+
+        return tradeLogs.stream()
+                .map(TradeLogSummaryResponse::from)
+                .toList();
+    }
+
+    public void deleteTradeLog(Long tradeLogId) { // Todo 이미지 추가되면 이미지도 삭제
+
+        TradeLog tradeLog = tradeLogRepository.findById(tradeLogId)
+                .orElseThrow(() -> new BaseException(ErrorCode.TRADELOG_NOT_FOUND));
+
+        tradeLogRepository.delete(tradeLog);
     }
 }
