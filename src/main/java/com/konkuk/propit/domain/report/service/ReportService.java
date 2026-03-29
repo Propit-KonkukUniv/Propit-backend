@@ -5,6 +5,10 @@ import com.konkuk.propit.domain.report.dto.response.DailyAiResult;
 import com.konkuk.propit.domain.report.dto.response.DailyReportResponse;
 import com.konkuk.propit.domain.report.dto.response.OverviewAiResult;
 import com.konkuk.propit.domain.report.dto.response.OverviewReportResponse;
+import com.konkuk.propit.domain.report.entity.DailyReportCache;
+import com.konkuk.propit.domain.report.entity.OverviewReportCache;
+import com.konkuk.propit.domain.report.repository.DailyReportCacheRepository;
+import com.konkuk.propit.domain.report.repository.OverviewReportCacheRepository;
 import com.konkuk.propit.domain.tradelog.entity.TradeLog;
 import com.konkuk.propit.domain.tradelog.repository.TradeLogRepository;
 import com.konkuk.propit.domain.user.entity.User;
@@ -29,11 +33,28 @@ public class ReportService {
     private final UserRepository userRepository;
     private final OpenAiService openAiService;
     private final ObjectMapper objectMapper;
+    private final OverviewReportCacheRepository overviewReportCacheRepository;
+    private final DailyReportCacheRepository dailyReportCacheRepository;
 
-    public DailyReportResponse generateDailyReport(LocalDate date) {
+    public DailyReportResponse generateDailyReport(CustomUserDetails userDetails, LocalDate date) {
 
-        User user = userRepository.findById(1L)
-                .orElseThrow();
+        Long userId = userDetails.getUserId();
+
+        Optional<DailyReportCache> cache = dailyReportCacheRepository.findByUserIdAndDate(userId, date);
+
+        if (cache.isPresent()) {
+            try {
+                return objectMapper.readValue(
+                        cache.get().getReportJson(),
+                        DailyReportResponse.class
+                );
+            } catch (Exception e) {
+                throw new RuntimeException("캐시 파싱 실패", e);
+            }
+        }
+
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new BaseException(USER_NOT_FOUND));
 
         List<TradeLog> logs =
                 tradeLogRepository.findByUserAndSellDate(user, date);
@@ -100,10 +121,10 @@ public class ReportService {
             throw new RuntimeException("AI 응답 파싱 실패", e);
         }
 
-        return new DailyReportResponse(
+        DailyReportResponse response = new DailyReportResponse(
                 date,
                 summary,
-                emotionAnalysisList, // count는 서버 계산값 유지
+                emotionAnalysisList,
                 new DailyReportResponse.AiInsight(
                         aiResult.aiInsight().strengthPattern(),
                         aiResult.aiInsight().improvementPoint(),
@@ -111,6 +132,22 @@ public class ReportService {
                 ),
                 aiResult.todayAdvice()
         );
+
+        try {
+            String json = objectMapper.writeValueAsString(response);
+
+            dailyReportCacheRepository.save(
+                    DailyReportCache.builder()
+                            .userId(userId)
+                            .date(date)
+                            .reportJson(json)
+                            .build()
+            );
+        } catch (Exception e) {
+            throw new RuntimeException("캐시 저장 실패", e);
+        }
+
+        return response;
     }
 
     private String buildDailyAiPrompt(
@@ -160,8 +197,23 @@ public class ReportService {
 
     public OverviewReportResponse getOverviewReport(CustomUserDetails userDetails) {
 
-        User user = userRepository.findById(userDetails.getUserId())
-                .orElseThrow(() -> new BaseException(USER_NOT_FOUND));
+        Long userId = userDetails.getUserId();
+
+        Optional<OverviewReportCache> cache = overviewReportCacheRepository.findByUserId(userId);
+
+        if (cache.isPresent()) {
+            try {
+                return objectMapper.readValue(
+                        cache.get().getReportJson(),
+                        OverviewReportResponse.class
+                );
+            } catch (Exception e) {
+                throw new RuntimeException("캐시 파싱 실패", e);
+            }
+        }
+
+        User user = userRepository.findById(userId)
+            .orElseThrow(() -> new BaseException(USER_NOT_FOUND));
 
         List<TradeLog> logs = tradeLogRepository.findAllByUser(user);
 
@@ -181,13 +233,28 @@ public class ReportService {
         // 4. AI & 전략
         OverviewAiResult aiResult = generateAiResult(logs);
 
-        return new OverviewReportResponse(
+        OverviewReportResponse response = new OverviewReportResponse(
                 summary,
                 trend,
                 aiResult.analysis(),
                 sector,
                 aiResult.strategies()
         );
+
+        try {
+            String json = objectMapper.writeValueAsString(response);
+
+            overviewReportCacheRepository.save(
+                    OverviewReportCache.builder()
+                            .userId(userId)
+                            .reportJson(json)
+                            .build()
+            );
+        } catch (Exception e) {
+            throw new RuntimeException("캐시 저장 실패", e);
+        }
+
+        return response;
     }
 
     private OverviewReportResponse.Summary calculateSummary(List<TradeLog> logs) {
