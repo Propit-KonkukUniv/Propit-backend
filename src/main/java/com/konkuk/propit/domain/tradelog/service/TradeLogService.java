@@ -2,6 +2,8 @@ package com.konkuk.propit.domain.tradelog.service;
 
 import com.konkuk.propit.domain.emotion.entity.Emotion;
 import com.konkuk.propit.domain.emotion.repository.EmotionRepository;
+import com.konkuk.propit.domain.report.repository.DailyReportCacheRepository;
+import com.konkuk.propit.domain.report.repository.OverviewReportCacheRepository;
 import com.konkuk.propit.domain.tradelog.dto.request.CreateTradeLogRequest;
 import com.konkuk.propit.domain.tradelog.dto.request.UpdateTradeLogRequest;
 import com.konkuk.propit.domain.tradelog.dto.response.TradeLogDetailResponse;
@@ -13,6 +15,7 @@ import com.konkuk.propit.domain.user.entity.User;
 import com.konkuk.propit.domain.user.repository.UserRepository;
 import com.konkuk.propit.global.exception.BaseException;
 import com.konkuk.propit.global.exception.code.ErrorCode;
+import java.time.LocalDate;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
@@ -29,6 +32,8 @@ public class TradeLogService {
     private final TradeLogRepository tradeLogRepository;
     private final EmotionRepository emotionRepository;
     private final UserRepository userRepository;
+    private final OverviewReportCacheRepository overviewCacheRepository;
+    private final DailyReportCacheRepository dailyReportCacheRepository;
 
     public void createTradeLog(CreateTradeLogRequest request, MultipartFile image) {
 
@@ -72,6 +77,10 @@ public class TradeLogService {
         }
 
         tradeLogRepository.save(tradeLog);
+
+        // 캐시 삭제
+        overviewCacheRepository.deleteByUserId(user.getId());
+        dailyReportCacheRepository.deleteByUserIdAndDate(user.getId(), request.sellDate());
     }
 
     public void updateTradeLog(Long tradeLogId, UpdateTradeLogRequest request) {
@@ -111,6 +120,13 @@ public class TradeLogService {
                 tradeLog.getTradeEmotions().add(tradeEmotion);
             }
         }
+
+        // 캐시 삭제
+        overviewCacheRepository.deleteByUserId(tradeLog.getUser().getId());
+        dailyReportCacheRepository.deleteByUserIdAndDate(
+                tradeLog.getUser().getId(),
+                tradeLog.getSellDate()
+        );
     }
 
     @Transactional(readOnly = true)
@@ -139,6 +155,13 @@ public class TradeLogService {
         TradeLog tradeLog = tradeLogRepository.findById(tradeLogId)
                 .orElseThrow(() -> new BaseException(ErrorCode.TRADELOG_NOT_FOUND));
 
+        Long userId = tradeLog.getUser().getId();
+        LocalDate date = tradeLog.getSellDate();
+
         tradeLogRepository.delete(tradeLog);
+
+        // 캐시 삭제
+        overviewCacheRepository.deleteByUserId(userId);
+        dailyReportCacheRepository.deleteByUserIdAndDate(userId, date);
     }
 }
