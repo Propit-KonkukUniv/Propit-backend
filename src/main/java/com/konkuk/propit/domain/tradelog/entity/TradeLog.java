@@ -32,6 +32,10 @@ public class TradeLog {
     @Column(nullable = false)
     private String stockName;
 
+    //업종
+    @Column(nullable = false)
+    private String sector;
+
     // 가격
     @Column(nullable = false)
     private Long buyPrice;
