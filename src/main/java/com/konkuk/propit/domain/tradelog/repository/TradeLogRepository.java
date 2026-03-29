@@ -10,7 +10,7 @@ import java.time.LocalDate;
 public interface TradeLogRepository extends JpaRepository<TradeLog, Long> {
 
     // 특정 유저의 매매 기록 조회
-    List<TradeLog> findByUser(User user);
+    List<TradeLog> findAllByUser(User user);
 
     // 최신순 조회
     List<TradeLog> findByUserOrderByCreatedAtDesc(User user);
