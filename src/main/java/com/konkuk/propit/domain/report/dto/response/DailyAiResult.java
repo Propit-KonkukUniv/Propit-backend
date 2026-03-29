@@ -2,7 +2,7 @@ package com.konkuk.propit.domain.report.dto.response;
 
 import java.util.List;
 
-public record AiGeneratedResult(
+public record DailyAiResult(
         List<EmotionAnalysis> emotionAnalysis,
         AiInsight aiInsight,
         List<String> todayAdvice
