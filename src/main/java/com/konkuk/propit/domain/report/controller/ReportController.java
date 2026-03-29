@@ -12,6 +12,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
+import static com.konkuk.propit.global.response.SuccessCode.DAILY_REPORT_SUCCESS;
 import static com.konkuk.propit.global.response.SuccessCode.OVERVIEW_REPORT_SUCCESS;
 
 @RestController
@@ -23,15 +24,13 @@ public class ReportController {
 
     @PostMapping("/daily")
     public ResponseEntity<?> getDailyReport(
+            @AuthenticationPrincipal CustomUserDetails userDetails,
             @RequestBody DailyReportRequest request
     ) {
 
-        DailyReportResponse response =
-                reportService.generateDailyReport(request.date());
+        DailyReportResponse response = reportService.generateDailyReport(userDetails, request.date());
 
-        return ResponseEntity.ok(
-                new ApiResponse<>(true, 20000, "요청에 성공했습니다.", response)
-        );
+        return ResponseEntity.ok().body(ApiResponse.success(DAILY_REPORT_SUCCESS, response));
     }
 
     @GetMapping("/overview")

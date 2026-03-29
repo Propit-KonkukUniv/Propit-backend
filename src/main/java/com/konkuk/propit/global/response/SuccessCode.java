@@ -18,7 +18,8 @@ public enum SuccessCode {
     USER_LOGIN_SUCCESS(HttpStatus.OK.value(), "로그인에 성공했습니다."),
 
     //Report
-    OVERVIEW_REPORT_SUCCESS(HttpStatus.OK.value(), "ai 누적 리포트 조회에 성공했습니다.")
+    OVERVIEW_REPORT_SUCCESS(HttpStatus.OK.value(), "ai 누적 리포트 조회에 성공했습니다."),
+    DAILY_REPORT_SUCCESS(HttpStatus.OK.value(), "ai 데일리 리포트 조회에 성공했습니다."),
 
     ;
 
