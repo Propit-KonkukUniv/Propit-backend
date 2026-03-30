@@ -17,6 +17,7 @@ import com.konkuk.propit.global.ai.service.OpenAiService;
 import com.konkuk.propit.global.exception.BaseException;
 import com.konkuk.propit.global.security.principal.CustomUserDetails;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
@@ -25,6 +26,7 @@ import java.util.stream.Collectors;
 
 import static com.konkuk.propit.global.exception.code.ErrorCode.*;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class ReportService {
@@ -49,7 +51,7 @@ public class ReportService {
                         DailyReportResponse.class
                 );
             } catch (Exception e) {
-                throw new RuntimeException("캐시 파싱 실패", e);
+                dailyReportCacheRepository.delete(cache.get());
             }
         }
 
@@ -118,7 +120,7 @@ public class ReportService {
         try {
             aiResult = objectMapper.readValue(aiRawJson, DailyAiResult.class);
         } catch (Exception e) {
-            throw new RuntimeException("AI 응답 파싱 실패", e);
+            throw new BaseException(AI_RESPONSE_PARSE_FAILED);
         }
 
         DailyReportResponse response = new DailyReportResponse(
@@ -144,7 +146,7 @@ public class ReportService {
                             .build()
             );
         } catch (Exception e) {
-            throw new RuntimeException("캐시 저장 실패", e);
+            log.warn("캐시 저장 실패", e);
         }
 
         return response;
@@ -208,7 +210,7 @@ public class ReportService {
                         OverviewReportResponse.class
                 );
             } catch (Exception e) {
-                throw new RuntimeException("캐시 파싱 실패", e);
+                overviewReportCacheRepository.delete(cache.get());
             }
         }
 
@@ -251,7 +253,7 @@ public class ReportService {
                             .build()
             );
         } catch (Exception e) {
-            throw new RuntimeException("캐시 저장 실패", e);
+            log.warn("캐시 저장 실패", e);
         }
 
         return response;
@@ -365,7 +367,7 @@ public class ReportService {
         try {
             return objectMapper.readValue(aiRaw, OverviewAiResult.class);
         } catch (Exception e) {
-            throw new RuntimeException("AI 파싱 실패", e);
+            throw new BaseException(AI_RESPONSE_PARSE_FAILED);
         }
     }
 

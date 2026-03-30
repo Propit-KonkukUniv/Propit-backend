@@ -27,6 +27,9 @@ public enum ErrorCode {
     TRADELOG_NOT_FOUND(HttpStatus.NOT_FOUND, "거래 기록을 찾을 수 없습니다."),
     EMOTION_NOT_FOUND(HttpStatus.NOT_FOUND, "감정을 찾을 수 없습니다."),
     TRADELOG_NOT_EXISTS(HttpStatus.NOT_FOUND, "거래 기록이 존재하지 않습니다."),
+
+    //Ai Report
+    AI_RESPONSE_PARSE_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "AI 응답 파싱에 실패했습니다."),
     ;
 
     private final HttpStatus status;
