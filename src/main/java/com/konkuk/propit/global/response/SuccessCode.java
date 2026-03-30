@@ -6,15 +6,22 @@ import org.springframework.http.HttpStatus;
 @Getter
 public enum SuccessCode {
 
+    //TradeLog
     TRADELOG_CREATE_SUCCESS(HttpStatus.OK.value(), "매매 기록 생성에 성공했습니다."),
     TRADELOG_UPDATE_SUCCESS(HttpStatus.OK.value(), "매매 기록 수정에 성공했습니다."),
     TRADELOG_DETAIL_SUCCESS(HttpStatus.OK.value(), "매매 기록 조회에 성공했습니다."),
     TRADELOG_LIST_SUCCESS(HttpStatus.OK.value(), "매매 기록 목록 조회에 성공했습니다."),
     TRADELOG_DELETE_SUCCESS(HttpStatus.OK.value(), "매매 기록 삭제에 성공했습니다."),
 
+    //User
     USER_SIGNUP_SUCCESS(HttpStatus.CREATED.value(), "회원가입에 성공했습니다."),
-    USER_LOGIN_SUCCESS(HttpStatus.OK.value(), "로그인에 성공했습니다.");
+    USER_LOGIN_SUCCESS(HttpStatus.OK.value(), "로그인에 성공했습니다."),
 
+    //Report
+    OVERVIEW_REPORT_SUCCESS(HttpStatus.OK.value(), "ai 누적 리포트 조회에 성공했습니다."),
+    DAILY_REPORT_SUCCESS(HttpStatus.OK.value(), "ai 데일리 리포트 조회에 성공했습니다."),
+
+    ;
 
     private final int code;
     private final String message;

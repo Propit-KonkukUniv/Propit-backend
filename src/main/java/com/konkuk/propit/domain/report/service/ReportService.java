@@ -1,20 +1,32 @@
 package com.konkuk.propit.domain.report.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.konkuk.propit.domain.report.dto.response.AiGeneratedResult;
+import com.konkuk.propit.domain.report.dto.response.DailyAiResult;
 import com.konkuk.propit.domain.report.dto.response.DailyReportResponse;
+import com.konkuk.propit.domain.report.dto.response.OverviewAiResult;
+import com.konkuk.propit.domain.report.dto.response.OverviewReportResponse;
+import com.konkuk.propit.domain.report.entity.DailyReportCache;
+import com.konkuk.propit.domain.report.entity.OverviewReportCache;
+import com.konkuk.propit.domain.report.repository.DailyReportCacheRepository;
+import com.konkuk.propit.domain.report.repository.OverviewReportCacheRepository;
 import com.konkuk.propit.domain.tradelog.entity.TradeLog;
 import com.konkuk.propit.domain.tradelog.repository.TradeLogRepository;
 import com.konkuk.propit.domain.user.entity.User;
 import com.konkuk.propit.domain.user.repository.UserRepository;
 import com.konkuk.propit.global.ai.service.OpenAiService;
+import com.konkuk.propit.global.exception.BaseException;
+import com.konkuk.propit.global.security.principal.CustomUserDetails;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
 import java.util.*;
 import java.util.stream.Collectors;
 
+import static com.konkuk.propit.global.exception.code.ErrorCode.*;
+
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class ReportService {
@@ -23,17 +35,34 @@ public class ReportService {
     private final UserRepository userRepository;
     private final OpenAiService openAiService;
     private final ObjectMapper objectMapper;
+    private final OverviewReportCacheRepository overviewReportCacheRepository;
+    private final DailyReportCacheRepository dailyReportCacheRepository;
 
-    public DailyReportResponse generateDailyReport(LocalDate date) {
+    public DailyReportResponse generateDailyReport(CustomUserDetails userDetails, LocalDate date) {
 
-        User user = userRepository.findById(1L)
-                .orElseThrow();
+        Long userId = userDetails.getUserId();
+
+        Optional<DailyReportCache> cache = dailyReportCacheRepository.findByUserIdAndDate(userId, date);
+
+        if (cache.isPresent()) {
+            try {
+                return objectMapper.readValue(
+                        cache.get().getReportJson(),
+                        DailyReportResponse.class
+                );
+            } catch (Exception e) {
+                dailyReportCacheRepository.delete(cache.get());
+            }
+        }
+
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new BaseException(USER_NOT_FOUND));
 
         List<TradeLog> logs =
                 tradeLogRepository.findByUserAndSellDate(user, date);
 
         if (logs.isEmpty()) {
-            throw new RuntimeException("해당 날짜에 작성된 매매기록이 없습니다.");
+            throw new BaseException(TRADELOG_NOT_EXISTS);
         }
 
         int tradeCount = logs.size();
@@ -80,24 +109,24 @@ public class ReportService {
                         ).toList();
 
         // 1. 프롬프트 생성
-        String prompt = buildPrompt(summary, emotionAnalysisList);
+        String prompt = buildDailyAiPrompt(summary, emotionAnalysisList);
 
         // 2. OpenAI 호출
-        String aiRawJson = openAiService.requestDailyAnalysis(prompt);
+        String aiRawJson = openAiService.requestAnalysis(prompt);
 
         // 3. JSON -> DTO 변환
-        AiGeneratedResult aiResult;
+        DailyAiResult aiResult;
 
         try {
-            aiResult = objectMapper.readValue(aiRawJson, AiGeneratedResult.class);
+            aiResult = objectMapper.readValue(aiRawJson, DailyAiResult.class);
         } catch (Exception e) {
-            throw new RuntimeException("AI 응답 파싱 실패", e);
+            throw new BaseException(AI_RESPONSE_PARSE_FAILED);
         }
 
-        return new DailyReportResponse(
+        DailyReportResponse response = new DailyReportResponse(
                 date,
                 summary,
-                emotionAnalysisList, // count는 서버 계산값 유지
+                emotionAnalysisList,
                 new DailyReportResponse.AiInsight(
                         aiResult.aiInsight().strengthPattern(),
                         aiResult.aiInsight().improvementPoint(),
@@ -105,9 +134,25 @@ public class ReportService {
                 ),
                 aiResult.todayAdvice()
         );
+
+        try {
+            String json = objectMapper.writeValueAsString(response);
+
+            dailyReportCacheRepository.save(
+                    DailyReportCache.builder()
+                            .userId(userId)
+                            .date(date)
+                            .reportJson(json)
+                            .build()
+            );
+        } catch (Exception e) {
+            log.warn("캐시 저장 실패", e);
+        }
+
+        return response;
     }
 
-    private String buildPrompt(
+    private String buildDailyAiPrompt(
             DailyReportResponse.Summary summary,
             List<DailyReportResponse.EmotionAnalysis> emotions
     ) {
@@ -151,4 +196,240 @@ public class ReportService {
                 emotionText
         );
     }
+
+    public OverviewReportResponse getOverviewReport(CustomUserDetails userDetails) {
+
+        Long userId = userDetails.getUserId();
+
+        Optional<OverviewReportCache> cache = overviewReportCacheRepository.findByUserId(userId);
+
+        if (cache.isPresent()) {
+            try {
+                return objectMapper.readValue(
+                        cache.get().getReportJson(),
+                        OverviewReportResponse.class
+                );
+            } catch (Exception e) {
+                overviewReportCacheRepository.delete(cache.get());
+            }
+        }
+
+        User user = userRepository.findById(userId)
+            .orElseThrow(() -> new BaseException(USER_NOT_FOUND));
+
+        List<TradeLog> logs = tradeLogRepository.findAllByUser(user);
+
+        if (logs.isEmpty()) {
+            throw new BaseException(TRADELOG_NOT_EXISTS);
+        }
+
+        // 1. summary
+        OverviewReportResponse.Summary summary = calculateSummary(logs);
+
+        // 2. trend
+        List<OverviewReportResponse.ProfitRatePoint> trend = calculateTrend(logs);
+
+        // 3. sector
+        List<OverviewReportResponse.SectorPerformance> sector = calculateSector(logs);
+
+        // 4. AI & 전략
+        OverviewAiResult aiResult = generateAiResult(logs);
+
+        OverviewReportResponse response = new OverviewReportResponse(
+                summary,
+                trend,
+                aiResult.analysis(),
+                sector,
+                aiResult.strategies()
+        );
+
+        try {
+            String json = objectMapper.writeValueAsString(response);
+
+            overviewReportCacheRepository.save(
+                    OverviewReportCache.builder()
+                            .userId(userId)
+                            .reportJson(json)
+                            .build()
+            );
+        } catch (Exception e) {
+            log.warn("캐시 저장 실패", e);
+        }
+
+        return response;
+    }
+
+    private OverviewReportResponse.Summary calculateSummary(List<TradeLog> logs) {
+
+        int totalTrades = logs.size();
+
+        long winCount = logs.stream()
+                .filter(log -> log.getProfitAmount() > 0)
+                .count();
+
+        double winRate = (double) winCount / totalTrades * 100;
+
+        long totalProfit = logs.stream()
+                .mapToLong(TradeLog::getProfitAmount)
+                .sum();
+
+        double avgReturn = logs.stream()
+                .mapToDouble(TradeLog::getProfitRate)
+                .average()
+                .orElse(0.0);
+
+        TradeLog best = logs.stream()
+                .max(Comparator.comparing(TradeLog::getProfitAmount))
+                .orElse(null);
+
+        TradeLog worst = logs.stream()
+                .min(Comparator.comparing(TradeLog::getProfitAmount))
+                .orElse(null);
+
+        Map.Entry<String, Long> emotionEntry = calculateEmotion(logs);
+
+        double avgHoldingDays = calculateHoldingDays(logs);
+
+        return new OverviewReportResponse.Summary(
+                totalTrades,
+                winRate,
+                totalProfit,
+                avgReturn,
+                toTradeInfo(best),
+                toTradeInfo(worst),
+                new OverviewReportResponse.EmotionInfo(
+                        emotionEntry.getKey(),
+                        emotionEntry.getValue()
+                ),
+                avgHoldingDays
+        );
+    }
+
+    private Map.Entry<String, Long> calculateEmotion(List<TradeLog> logs) {
+        return logs.stream()
+                .flatMap(log -> log.getTradeEmotions().stream())
+                .collect(Collectors.groupingBy(
+                        te -> te.getEmotion().getName(),
+                        Collectors.counting()
+                ))
+                .entrySet()
+                .stream()
+                .max(Map.Entry.comparingByValue())
+                .orElse(Map.entry("NONE", 0L));
+    }
+
+    private double calculateHoldingDays(List<TradeLog> logs) {
+        return logs.stream()
+                .mapToInt(TradeLog::getHoldingDays)
+                .average()
+                .orElse(0);
+    }
+
+    private List<OverviewReportResponse.ProfitRatePoint> calculateTrend(List<TradeLog> logs) {
+
+        return logs.stream()
+                .collect(Collectors.groupingBy(
+                        log -> java.time.YearMonth.from(log.getSellDate()),
+                        TreeMap::new,
+                        Collectors.averagingDouble(TradeLog::getProfitRate)
+                ))
+                .entrySet()
+                .stream()
+                .map(e -> new OverviewReportResponse.ProfitRatePoint(
+                        e.getKey().getMonthValue(),
+                        e.getValue()
+                ))
+                .toList();
+    }
+
+    private List<OverviewReportResponse.SectorPerformance> calculateSector(List<TradeLog> logs) {
+
+        return logs.stream()
+                .collect(Collectors.groupingBy(
+                        TradeLog::getSector,
+                        Collectors.averagingDouble(TradeLog::getProfitRate)
+                ))
+                .entrySet()
+                .stream()
+                .map(e -> new OverviewReportResponse.SectorPerformance(
+                        e.getKey(),
+                        e.getValue()
+                ))
+                .toList();
+    }
+
+    private OverviewAiResult generateAiResult(List<TradeLog> logs) {
+
+        String prompt = buildOverviewAiPrompt(logs);
+
+        String aiRaw = openAiService.requestAnalysis(prompt);
+
+        try {
+            return objectMapper.readValue(aiRaw, OverviewAiResult.class);
+        } catch (Exception e) {
+            throw new BaseException(AI_RESPONSE_PARSE_FAILED);
+        }
+    }
+
+    private String buildOverviewAiPrompt(List<TradeLog> logs) {
+
+        int totalTrades = logs.size();
+
+        long winCount = logs.stream()
+                .filter(l -> l.getProfitAmount() > 0)
+                .count();
+
+        double winRate = (double) winCount / totalTrades * 100;
+
+        Map<String, Double> emotionPerformance = logs.stream()
+                .flatMap(log -> log.getTradeEmotions().stream()
+                        .map(te -> Map.entry(
+                                te.getEmotion().getName(),
+                                log.getProfitRate()
+                        )))
+                .collect(Collectors.groupingBy(
+                        Map.Entry::getKey,
+                        Collectors.averagingDouble(Map.Entry::getValue)
+                ));
+
+        String emotionText = emotionPerformance.entrySet().stream()
+                .map(e -> e.getKey() + ": " + String.format("%.2f%%", e.getValue()))
+                .collect(Collectors.joining("\n"));
+
+        return """
+        투자 데이터 기반 분석.
+
+        거래 수: %d
+        승률: %.2f%%
+
+        감정별 수익률:
+        %s
+        
+        전략은 반드시 서로 다른 관점으로 3~4개 생성
+        
+        JSON 형식으로 응답:
+
+        {
+          "analysis": {
+            "positive": { "emotion": "", "description": "", "insight": "" },
+            "negative": { "emotion": "", "description": "", "insight": "" }
+          },
+          "strategies": [
+            { "title": "", "description": "" }
+          ]
+        }
+        """.formatted(totalTrades, winRate, emotionText);
+    }
+
+    private OverviewReportResponse.TradeInfo toTradeInfo(TradeLog log) {
+        if (log == null) return null;
+
+        return new OverviewReportResponse.TradeInfo(
+                log.getStockName(),
+                log.getProfitAmount(),
+                log.getProfitRate(),
+                log.getSellDate().toString()
+        );
+    }
+
 }

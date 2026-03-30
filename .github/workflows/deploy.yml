@@ -58,4 +58,10 @@ jobs:
             -e DB_URL='${{ secrets.DB_URL }}' \
             -e DB_USER='${{ secrets.DB_USER }}' \
             -e DB_PASSWORD='${{ secrets.DB_PASSWORD }}' \
+            -e OPENAI_API_KEY='${{ secrets.OPENAI_API_KEY }}' \
+            -e JWT_SECRET='${{ secrets.JWT_SECRET }}' \
+            -e JWT_ACCESS_EXPIRE='${{ secrets.JWT_ACCESS_EXPIRE }}' \
+            -e JWT_REFRESH_EXPIRE='${{ secrets.JWT_REFRESH_EXPIRE }}' \
+            -e REDIS_HOST='${{ secrets.REDIS_HOST }}' \
+            -e REDIS_PORT='${{ secrets.REDIS_PORT }}' \
             ${{ secrets.DOCKER_USERNAME }}/propit-server:latest

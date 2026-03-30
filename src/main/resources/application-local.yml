@@ -24,3 +24,6 @@ security:
       secret-key: my-local-test-secret-key-12345678910
       access-expire: 3600000      #1시간
       refresh-expire: 1209600000  # 14일
+
+openai:
+  api-key: ${OPENAI_API_KEY}

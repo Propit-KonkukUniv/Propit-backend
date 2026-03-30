@@ -1,0 +1,2 @@
+ALTER TABLE trade_log
+ADD COLUMN sector VARCHAR(50) NOT NULL;

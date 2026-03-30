@@ -8,3 +8,6 @@ spring:
   jackson:
     serialization:
       FAIL_ON_EMPTY_BEANS: false
+
+openai:
+  url: https://api.openai.com/v1/chat/completions

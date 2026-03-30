@@ -22,7 +22,7 @@ public class OpenAiService {
 
     private final WebClient.Builder webClientBuilder;
 
-    public String requestDailyAnalysis(String prompt) {
+    public String requestAnalysis(String prompt) {
 
         WebClient webClient = webClientBuilder.baseUrl(apiUrl).build();
 

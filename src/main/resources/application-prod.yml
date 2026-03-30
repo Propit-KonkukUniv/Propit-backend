@@ -27,3 +27,6 @@ security:
       secret-key: ${JWT_SECRET}
       access-expire: ${JWT_ACCESS_EXPIRE}
       refresh-expire: ${JWT_REFRESH_EXPIRE}
+
+openai:
+  api-key: ${OPENAI_API_KEY}
