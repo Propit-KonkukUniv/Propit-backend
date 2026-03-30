@@ -10,5 +10,4 @@ spring:
       FAIL_ON_EMPTY_BEANS: false
 
 openai:
-  api-key: ${OPENAI_API_KEY}
   url: https://api.openai.com/v1/chat/completions

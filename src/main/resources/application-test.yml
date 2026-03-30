@@ -18,3 +18,6 @@ security:
       secret-key: my-test-server-test-secret-key-12345678910
       access-expire: 3600000
       refresh-expire: 1209600000
+
+openai:
+  api-key: test-openai-api-key
