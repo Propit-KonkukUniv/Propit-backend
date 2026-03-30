@@ -80,7 +80,7 @@ public class TradeLogService {
 
         // 캐시 삭제
         overviewCacheRepository.deleteByUserId(user.getId());
-        dailyReportCacheRepository.deleteByUserIdAndDate(user.getId(), request.sellDate());
+        dailyReportCacheRepository.deleteByUserId(user.getId());
     }
 
     public void updateTradeLog(Long tradeLogId, UpdateTradeLogRequest request) {
@@ -123,10 +123,7 @@ public class TradeLogService {
 
         // 캐시 삭제
         overviewCacheRepository.deleteByUserId(tradeLog.getUser().getId());
-        dailyReportCacheRepository.deleteByUserIdAndDate(
-                tradeLog.getUser().getId(),
-                tradeLog.getSellDate()
-        );
+        dailyReportCacheRepository.deleteByUserId(tradeLog.getUser().getId());
     }
 
     @Transactional(readOnly = true)
@@ -162,6 +159,6 @@ public class TradeLogService {
 
         // 캐시 삭제
         overviewCacheRepository.deleteByUserId(userId);
-        dailyReportCacheRepository.deleteByUserIdAndDate(userId, date);
+        dailyReportCacheRepository.deleteByUserId(userId);
     }
 }

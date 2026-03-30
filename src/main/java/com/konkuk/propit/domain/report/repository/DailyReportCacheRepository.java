@@ -7,5 +7,5 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface DailyReportCacheRepository extends JpaRepository<DailyReportCache, Long> {
     Optional<DailyReportCache> findByUserIdAndDate(Long userId, LocalDate date);
-    void deleteByUserIdAndDate(Long userId, LocalDate date);
+    void deleteByUserId(Long userId);
 }
