@@ -84,6 +84,7 @@ public class TradeLog {
     public void update(
             LocalDate sellDate,
             String stockName,
+            String sectorName,
             Long buyPrice,
             Long sellPrice,
             Integer quantity,
@@ -92,6 +93,7 @@ public class TradeLog {
     ) {
         this.sellDate = sellDate;
         this.stockName = stockName;
+        this.sector = sectorName;
         this.buyPrice = buyPrice;
         this.sellPrice = sellPrice;
         this.quantity = quantity;

@@ -85,6 +85,7 @@ public class TradeLogService {
         tradeLog.update(
                 request.sellDate(),
                 request.stockName(),
+                request.sectorName(),
                 request.buyPrice(),
                 request.sellPrice(),
                 request.quantity(),
