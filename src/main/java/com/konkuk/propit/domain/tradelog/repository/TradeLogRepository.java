@@ -2,10 +2,12 @@ package com.konkuk.propit.domain.tradelog.repository;
 
 import com.konkuk.propit.domain.tradelog.entity.TradeLog;
 import com.konkuk.propit.domain.user.entity.User;
+import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.List;
 import java.time.LocalDate;
+import java.util.Optional;
 
 public interface TradeLogRepository extends JpaRepository<TradeLog, Long> {
 
@@ -16,4 +18,8 @@ public interface TradeLogRepository extends JpaRepository<TradeLog, Long> {
     List<TradeLog> findByUserOrderByCreatedAtDesc(User user);
 
     List<TradeLog> findByUserAndSellDate(User user, LocalDate sellDate);
+
+    Optional<TradeLog> findByIdAndUserId(Long id, Long userId);
+
+    List<TradeLog> findByUserId(Long userId, Sort sort);
 }
