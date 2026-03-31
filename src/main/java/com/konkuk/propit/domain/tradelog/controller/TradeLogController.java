@@ -5,11 +5,14 @@ import com.konkuk.propit.domain.tradelog.dto.request.UpdateTradeLogRequest;
 import com.konkuk.propit.domain.tradelog.dto.response.TradeLogDetailResponse;
 import com.konkuk.propit.domain.tradelog.dto.response.TradeLogSummaryResponse;
 import com.konkuk.propit.domain.tradelog.service.TradeLogService;
+import com.konkuk.propit.global.common.ApiResponse;
+import com.konkuk.propit.global.security.principal.CustomUserDetails;
+
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
-import com.konkuk.propit.global.common.ApiResponse;
 
 import java.util.List;
 
@@ -22,54 +25,69 @@ public class TradeLogController {
 
     private final TradeLogService tradeLogService;
 
+    // 생성
     @PostMapping(consumes = {"multipart/form-data"})
     public ResponseEntity<ApiResponse<Void>> createTradeLog(
+            @AuthenticationPrincipal CustomUserDetails userDetails,
             @RequestPart("data") CreateTradeLogRequest request,
             @RequestPart(value = "image", required = false) MultipartFile image
     ) {
 
-        tradeLogService.createTradeLog(request, image);
+        tradeLogService.createTradeLog(userDetails, request, image);
 
-        return ResponseEntity.ok().body(ApiResponse.success(TRADELOG_CREATE_SUCCESS, null));
+        return ResponseEntity.ok()
+                .body(ApiResponse.success(TRADELOG_CREATE_SUCCESS, null));
     }
 
+    // 수정
     @PutMapping("/{tradeLogId}")
     public ResponseEntity<ApiResponse<Void>> updateTradeLog(
+            @AuthenticationPrincipal CustomUserDetails userDetails,
             @PathVariable Long tradeLogId,
             @RequestBody UpdateTradeLogRequest request
     ) {
 
-        tradeLogService.updateTradeLog(tradeLogId, request);
+        tradeLogService.updateTradeLog(userDetails, tradeLogId, request);
 
-        return ResponseEntity.ok().body(ApiResponse.success(TRADELOG_UPDATE_SUCCESS, null));
+        return ResponseEntity.ok()
+                .body(ApiResponse.success(TRADELOG_UPDATE_SUCCESS, null));
     }
 
+    // 상세 조회
     @GetMapping("/{tradeLogId}")
     public ResponseEntity<ApiResponse<TradeLogDetailResponse>> getTradeLogDetail(
+            @AuthenticationPrincipal CustomUserDetails userDetails,
             @PathVariable Long tradeLogId
     ) {
 
-        TradeLogDetailResponse response = tradeLogService.getTradeLogDetail(tradeLogId);
+        TradeLogDetailResponse response =
+                tradeLogService.getTradeLogDetail(userDetails, tradeLogId);
 
         return ResponseEntity.ok()
                 .body(ApiResponse.success(TRADELOG_DETAIL_SUCCESS, response));
     }
 
+    // 목록 조회
     @GetMapping
-    public ResponseEntity<ApiResponse<List<TradeLogSummaryResponse>>> getTradeLogs() {
+    public ResponseEntity<ApiResponse<List<TradeLogSummaryResponse>>> getTradeLogs(
+            @AuthenticationPrincipal CustomUserDetails userDetails
+    ) {
 
-        List<TradeLogSummaryResponse> response = tradeLogService.getTradeLogs();
+        List<TradeLogSummaryResponse> response =
+                tradeLogService.getTradeLogs(userDetails);
 
         return ResponseEntity.ok()
                 .body(ApiResponse.success(TRADELOG_LIST_SUCCESS, response));
     }
 
+    // 삭제
     @DeleteMapping("/{tradeLogId}")
     public ResponseEntity<ApiResponse<Void>> deleteTradeLog(
+            @AuthenticationPrincipal CustomUserDetails userDetails,
             @PathVariable Long tradeLogId
     ) {
 
-        tradeLogService.deleteTradeLog(tradeLogId);
+        tradeLogService.deleteTradeLog(userDetails, tradeLogId);
 
         return ResponseEntity.ok()
                 .body(ApiResponse.success(TRADELOG_DELETE_SUCCESS, null));
