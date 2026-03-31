@@ -29,11 +29,10 @@ public class TradeLogController {
     @PostMapping(consumes = {"multipart/form-data"})
     public ResponseEntity<ApiResponse<Void>> createTradeLog(
             @AuthenticationPrincipal CustomUserDetails userDetails,
-            @RequestPart("data") CreateTradeLogRequest request,
-            @RequestPart(value = "image", required = false) MultipartFile image
+            @RequestBody CreateTradeLogRequest request
     ) {
 
-        tradeLogService.createTradeLog(userDetails, request, image);
+        tradeLogService.createTradeLog(userDetails, request);
 
         return ResponseEntity.ok()
                 .body(ApiResponse.success(TRADELOG_CREATE_SUCCESS, null));

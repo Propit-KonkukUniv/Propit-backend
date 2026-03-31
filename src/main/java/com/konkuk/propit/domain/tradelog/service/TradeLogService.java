@@ -15,14 +15,12 @@ import com.konkuk.propit.domain.user.entity.User;
 import com.konkuk.propit.domain.user.repository.UserRepository;
 import com.konkuk.propit.global.exception.BaseException;
 import com.konkuk.propit.global.exception.code.ErrorCode;
-import java.time.LocalDate;
 
 import com.konkuk.propit.global.security.principal.CustomUserDetails;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 
@@ -37,13 +35,10 @@ public class TradeLogService {
     private final OverviewReportCacheRepository overviewCacheRepository;
     private final DailyReportCacheRepository dailyReportCacheRepository;
 
-    public void createTradeLog(CustomUserDetails userDetails, CreateTradeLogRequest request, MultipartFile image) {
+    public void createTradeLog(CustomUserDetails userDetails, CreateTradeLogRequest request) {
 
         User user = userRepository.findById(userDetails.getUserId())
                 .orElseThrow(() -> new BaseException(ErrorCode.USER_NOT_FOUND));
-
-        // S3 하드코딩
-        String imageUrl = "https://dummy-image.com/default.png";
 
         TradeLog tradeLog = TradeLog.builder()
                 .user(user)
@@ -54,7 +49,6 @@ public class TradeLogService {
                 .quantity(request.quantity())
                 .holdingDays(request.holdingDays())
                 .reason(request.reason())
-                .imageUrl(imageUrl)
                 .build();
 
         tradeLog.calculateProfit();
