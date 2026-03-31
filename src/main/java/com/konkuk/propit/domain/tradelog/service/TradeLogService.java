@@ -44,6 +44,7 @@ public class TradeLogService {
                 .user(user)
                 .sellDate(request.sellDate())
                 .stockName(request.stockName())
+                .sector(request.sectorName())
                 .buyPrice(request.buyPrice())
                 .sellPrice(request.sellPrice())
                 .quantity(request.quantity())
@@ -84,6 +85,7 @@ public class TradeLogService {
         tradeLog.update(
                 request.sellDate(),
                 request.stockName(),
+                request.sectorName(),
                 request.buyPrice(),
                 request.sellPrice(),
                 request.quantity(),
