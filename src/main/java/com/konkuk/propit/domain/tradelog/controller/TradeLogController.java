@@ -26,7 +26,7 @@ public class TradeLogController {
     private final TradeLogService tradeLogService;
 
     // 생성
-    @PostMapping(consumes = {"multipart/form-data"})
+    @PostMapping()
     public ResponseEntity<ApiResponse<Void>> createTradeLog(
             @AuthenticationPrincipal CustomUserDetails userDetails,
             @RequestBody CreateTradeLogRequest request
