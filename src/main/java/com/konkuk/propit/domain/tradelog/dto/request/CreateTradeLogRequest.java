@@ -6,6 +6,7 @@ import java.util.List;
 public record CreateTradeLogRequest(
         LocalDate sellDate,
         String stockName,
+        String sectorName,
         Long buyPrice,
         Long sellPrice,
         Integer quantity,
