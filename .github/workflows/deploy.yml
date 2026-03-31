@@ -52,7 +52,12 @@ jobs:
             docker stop propit-server || true
             docker rm propit-server || true
             docker pull ${{ secrets.DOCKER_USERNAME }}/propit-server:latest
-          
+            
+            docker run -d \
+            --name redis \
+            --network propit-network \
+            redis
+            
             docker run -d -p 8080:8080 --name propit-server \
             -e SPRING_PROFILES_ACTIVE=prod \
             -e DB_URL='${{ secrets.DB_URL }}' \
