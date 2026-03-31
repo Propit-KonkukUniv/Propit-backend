@@ -1,0 +1,1 @@
+ALTER TABLE trade_log DROP COLUMN image_url;

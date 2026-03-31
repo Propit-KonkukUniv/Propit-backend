@@ -53,8 +53,6 @@ public class TradeLog {
     @Column(columnDefinition = "TEXT")
     private String reason;
 
-    private String imageUrl;
-
     // 계산 필드
     private Long profitAmount;
 

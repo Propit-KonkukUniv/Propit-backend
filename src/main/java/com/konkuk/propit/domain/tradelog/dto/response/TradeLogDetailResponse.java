@@ -17,7 +17,6 @@ public record TradeLogDetailResponse(
         Long profitAmount,
         Double profitRate,
         String reason,
-        String imageUrl,
         List<String> emotionTags,
         LocalDateTime createdAt
 ) {
@@ -34,7 +33,6 @@ public record TradeLogDetailResponse(
                 tradeLog.getProfitAmount(),
                 tradeLog.getProfitRate(),
                 tradeLog.getReason(),
-                tradeLog.getImageUrl(),
                 tradeLog.getTradeEmotions().stream()
                         .map(te -> te.getEmotion().getName())
                         .toList(),
