@@ -60,6 +60,7 @@ public class TradeLog {
 
     private LocalDateTime createdAt;
 
+    @Builder.Default
     @OneToMany(mappedBy = "tradeLog", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<TradeEmotion> tradeEmotions = new ArrayList<>();
 
