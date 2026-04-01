@@ -215,6 +215,7 @@ public class ReportService {
         );
     }
 
+    @Transactional
     public OverviewReportResponse getOverviewReport(CustomUserDetails userDetails) {
 
         Long userId = userDetails.getUserId();
@@ -232,49 +233,65 @@ public class ReportService {
             }
         }
 
-        User user = userRepository.findById(userId)
-            .orElseThrow(() -> new BaseException(USER_NOT_FOUND));
+        synchronized (this) {
 
-        List<TradeLog> logs = tradeLogRepository.findAllByUser(user);
+            Optional<OverviewReportCache> cache2 = overviewReportCacheRepository.findByUserId(userId);
 
-        if (logs.isEmpty()) {
-            throw new BaseException(TRADELOG_NOT_EXISTS);
-        }
+            if (cache2.isPresent()) {
+                try {
+                    return objectMapper.readValue(
+                            cache2.get().getReportJson(),
+                            OverviewReportResponse.class
+                    );
+                } catch (Exception e) {
+                    overviewReportCacheRepository.delete(cache2.get());
+                }
+            }
 
-        // 1. summary
-        OverviewReportResponse.Summary summary = calculateSummary(logs);
+            User user = userRepository.findById(userId)
+                    .orElseThrow(() -> new BaseException(USER_NOT_FOUND));
 
-        // 2. trend
-        List<OverviewReportResponse.ProfitRatePoint> trend = calculateTrend(logs);
+            List<TradeLog> logs = tradeLogRepository.findAllByUser(user);
 
-        // 3. sector
-        List<OverviewReportResponse.SectorPerformance> sector = calculateSector(logs);
+            if (logs.isEmpty()) {
+                throw new BaseException(TRADELOG_NOT_EXISTS);
+            }
 
-        // 4. AI & 전략
-        OverviewAiResult aiResult = generateAiResult(logs);
+            // 1. summary
+            OverviewReportResponse.Summary summary = calculateSummary(logs);
 
-        OverviewReportResponse response = new OverviewReportResponse(
-                summary,
-                trend,
-                aiResult.analysis(),
-                sector,
-                aiResult.strategies()
-        );
+            // 2. trend
+            List<OverviewReportResponse.ProfitRatePoint> trend = calculateTrend(logs);
 
-        try {
-            String json = objectMapper.writeValueAsString(response);
+            // 3. sector
+            List<OverviewReportResponse.SectorPerformance> sector = calculateSector(logs);
 
-            overviewReportCacheRepository.save(
-                    OverviewReportCache.builder()
-                            .userId(userId)
-                            .reportJson(json)
-                            .build()
+            // 4. AI & 전략
+            OverviewAiResult aiResult = generateAiResult(logs);
+
+            OverviewReportResponse response = new OverviewReportResponse(
+                    summary,
+                    trend,
+                    aiResult.analysis(),
+                    sector,
+                    aiResult.strategies()
             );
-        } catch (Exception e) {
-            log.warn("캐시 저장 실패", e);
-        }
 
-        return response;
+            try {
+                String json = objectMapper.writeValueAsString(response);
+
+                overviewReportCacheRepository.save(
+                        OverviewReportCache.builder()
+                                .userId(userId)
+                                .reportJson(json)
+                                .build()
+                );
+            } catch (Exception e) {
+                log.warn("캐시 저장 실패", e);
+            }
+
+            return response;
+        }
     }
 
     private OverviewReportResponse.Summary calculateSummary(List<TradeLog> logs) {

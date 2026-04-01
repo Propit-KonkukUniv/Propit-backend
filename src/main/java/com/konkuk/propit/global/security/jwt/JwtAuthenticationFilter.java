@@ -19,19 +19,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain) throws ServletException, IOException {
 
-        // 1. 요청 들어오는 URL과 Method 확인
-        System.out.println("[Filter] Request URL: " + request.getRequestURI());
-        System.out.println("[Filter] Request Method: " + request.getMethod());
-
-        if (request.getMethod().equals("OPTIONS")) {
-            chain.doFilter(request, response);
-            return;
-        }
-
         String token = resolveToken(request);
-
-        // 2. 토큰 추출 결과 확인
-        System.out.println("[Filter] Extracted Token: " + token);
 
         if (token != null && jwtTokenProvider.validateToken(token)) {
             Long userId = jwtTokenProvider.getUserId(token);
