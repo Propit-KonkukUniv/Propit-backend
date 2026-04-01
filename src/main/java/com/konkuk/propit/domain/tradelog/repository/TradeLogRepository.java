@@ -4,6 +4,7 @@ import com.konkuk.propit.domain.tradelog.entity.TradeLog;
 import com.konkuk.propit.domain.user.entity.User;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
 
 import java.util.List;
 import java.time.LocalDate;
@@ -22,4 +23,7 @@ public interface TradeLogRepository extends JpaRepository<TradeLog, Long> {
     Optional<TradeLog> findByIdAndUserId(Long id, Long userId);
 
     List<TradeLog> findByUserId(Long userId, Sort sort);
+
+    @Query("select tl from TradeLog tl join fetch tl.tradeEmotions where tl.user = :user and tl.sellDate = :date")
+    List<TradeLog> findWithEmotions(User user, LocalDate date);
 }

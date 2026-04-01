@@ -19,6 +19,7 @@ import com.konkuk.propit.global.security.principal.CustomUserDetails;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.util.*;
@@ -38,11 +39,13 @@ public class ReportService {
     private final OverviewReportCacheRepository overviewReportCacheRepository;
     private final DailyReportCacheRepository dailyReportCacheRepository;
 
+    @Transactional
     public DailyReportResponse generateDailyReport(CustomUserDetails userDetails, LocalDate date) {
 
         Long userId = userDetails.getUserId();
 
-        Optional<DailyReportCache> cache = dailyReportCacheRepository.findByUserIdAndDate(userId, date);
+        Optional<DailyReportCache> cache =
+                dailyReportCacheRepository.findByUserIdAndDate(userId, date);
 
         if (cache.isPresent()) {
             try {
@@ -55,101 +58,116 @@ public class ReportService {
             }
         }
 
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new BaseException(USER_NOT_FOUND));
+        synchronized (this) {
 
-        List<TradeLog> logs =
-                tradeLogRepository.findByUserAndSellDate(user, date);
+            Optional<DailyReportCache> cache2 =
+                    dailyReportCacheRepository.findByUserIdAndDate(userId, date);
 
-        if (logs.isEmpty()) {
-            throw new BaseException(TRADELOG_NOT_EXISTS);
-        }
+            if (cache2.isPresent()) {
+                try {
+                    return objectMapper.readValue(
+                            cache2.get().getReportJson(),
+                            DailyReportResponse.class
+                    );
+                } catch (Exception e) {
+                    dailyReportCacheRepository.delete(cache2.get());
+                }
+            }
 
-        int tradeCount = logs.size();
+            User user = userRepository.findById(userId)
+                    .orElseThrow(() -> new BaseException(USER_NOT_FOUND));
 
-        long totalProfit = logs.stream()
-                .mapToLong(TradeLog::getProfitAmount)
-                .sum();
+            List<TradeLog> logs =
+                    tradeLogRepository.findWithEmotions(user, date);
 
-        double avgProfitRate = logs.stream()
-                .mapToDouble(TradeLog::getProfitRate)
-                .average()
-                .orElse(0.0);
+            if (logs.isEmpty()) {
+                throw new BaseException(TRADELOG_NOT_EXISTS);
+            }
 
-        long winCount = logs.stream()
-                .filter(l -> l.getProfitAmount() > 0)
-                .count();
+            int tradeCount = logs.size();
 
-        double winRate = (double) winCount / tradeCount * 100;
+            long totalProfit = logs.stream()
+                    .mapToLong(TradeLog::getProfitAmount)
+                    .sum();
 
-        DailyReportResponse.Summary summary =
-                new DailyReportResponse.Summary(
-                        tradeCount,
-                        winRate,
-                        totalProfit,
-                        avgProfitRate
-                );
+            double avgProfitRate = logs.stream()
+                    .mapToDouble(TradeLog::getProfitRate)
+                    .average()
+                    .orElse(0.0);
 
-        // 감정 집계
-        Map<String, Long> emotionCountMap = logs.stream()
-                .flatMap(log -> log.getTradeEmotions().stream())
-                .collect(Collectors.groupingBy(
-                        te -> te.getEmotion().getName(),
-                        Collectors.counting()
-                ));
+            long winCount = logs.stream()
+                    .filter(l -> l.getProfitAmount() > 0)
+                    .count();
 
-        List<DailyReportResponse.EmotionAnalysis> emotionAnalysisList =
-                emotionCountMap.entrySet().stream()
-                        .map(entry ->
-                                new DailyReportResponse.EmotionAnalysis(
-                                        entry.getKey(),
-                                        entry.getValue().intValue(),
-                                        entry.getKey() + " 감정이 자주 등장했습니다."
-                                )
-                        ).toList();
+            double winRate = (double) winCount / tradeCount * 100;
 
-        // 1. 프롬프트 생성
-        String prompt = buildDailyAiPrompt(summary, emotionAnalysisList);
+            DailyReportResponse.Summary summary =
+                    new DailyReportResponse.Summary(
+                            tradeCount,
+                            winRate,
+                            totalProfit,
+                            avgProfitRate
+                    );
 
-        // 2. OpenAI 호출
-        String aiRawJson = openAiService.requestAnalysis(prompt);
+            Map<String, Long> emotionCountMap = logs.stream()
+                    .flatMap(log -> log.getTradeEmotions().stream())
+                    .collect(Collectors.groupingBy(
+                            te -> te.getEmotion().getName(),
+                            Collectors.counting()
+                    ));
 
-        // 3. JSON -> DTO 변환
-        DailyAiResult aiResult;
+            List<DailyReportResponse.EmotionAnalysis> emotionAnalysisList =
+                    emotionCountMap.entrySet().stream()
+                            .map(entry ->
+                                    new DailyReportResponse.EmotionAnalysis(
+                                            entry.getKey(),
+                                            entry.getValue().intValue(),
+                                            entry.getKey() + " 감정이 자주 등장했습니다."
+                                    )
+                            ).toList();
 
-        try {
-            aiResult = objectMapper.readValue(aiRawJson, DailyAiResult.class);
-        } catch (Exception e) {
-            throw new BaseException(AI_RESPONSE_PARSE_FAILED);
-        }
+            String prompt = buildDailyAiPrompt(summary, emotionAnalysisList);
 
-        DailyReportResponse response = new DailyReportResponse(
-                date,
-                summary,
-                emotionAnalysisList,
-                new DailyReportResponse.AiInsight(
-                        aiResult.aiInsight().strengthPattern(),
-                        aiResult.aiInsight().improvementPoint(),
-                        aiResult.aiInsight().cautionTime()
-                ),
-                aiResult.todayAdvice()
-        );
+            String aiRawJson = openAiService.requestAnalysis(prompt);
 
-        try {
-            String json = objectMapper.writeValueAsString(response);
+            DailyAiResult aiResult;
 
-            dailyReportCacheRepository.save(
-                    DailyReportCache.builder()
-                            .userId(userId)
-                            .date(date)
-                            .reportJson(json)
-                            .build()
+            try {
+                aiResult = objectMapper.readValue(aiRawJson, DailyAiResult.class);
+            } catch (Exception e) {
+                throw new BaseException(AI_RESPONSE_PARSE_FAILED);
+            }
+
+            DailyReportResponse response = new DailyReportResponse(
+                    date,
+                    summary,
+                    emotionAnalysisList,
+                    new DailyReportResponse.AiInsight(
+                            aiResult.aiInsight().strengthPattern(),
+                            aiResult.aiInsight().improvementPoint(),
+                            aiResult.aiInsight().cautionTime()
+                    ),
+                    aiResult.todayAdvice()
             );
-        } catch (Exception e) {
-            log.warn("캐시 저장 실패", e);
-        }
 
-        return response;
+            try {
+                String json = objectMapper.writeValueAsString(response);
+
+                if (!aiResult.aiInsight().strengthPattern().equals("AI 분석 지연")) {
+                    dailyReportCacheRepository.save(
+                            DailyReportCache.builder()
+                                    .userId(userId)
+                                    .date(date)
+                                    .reportJson(json)
+                                    .build()
+                    );
+                }
+            } catch (Exception e) {
+                log.warn("캐시 저장 실패", e);
+            }
+
+            return response;
+        }
     }
 
     private String buildDailyAiPrompt(

@@ -36,14 +36,32 @@ public class OpenAiService {
                 0.3
         );
 
-        OpenAiResponse response = webClient.post()
-                .header("Authorization", "Bearer " + apiKey)
-                .contentType(MediaType.APPLICATION_JSON)
-                .bodyValue(request)
-                .retrieve()
-                .bodyToMono(OpenAiResponse.class)
-                .block();
+        try {
+            OpenAiResponse response = webClient.post()
+                    .header("Authorization", "Bearer " + apiKey)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .bodyValue(request)
+                    .retrieve()
+                    .bodyToMono(OpenAiResponse.class)
+                    .retryWhen(
+                            reactor.util.retry.Retry.backoff(3, java.time.Duration.ofSeconds(3))
+                    )
+                    .block();
 
-        return response.choices().get(0).message().content();
+            return response.choices().get(0).message().content();
+
+        } catch (Exception e) {
+            // fallback (429 대비)
+            return """
+        {
+          "aiInsight": {
+            "strengthPattern": "AI 분석 지연",
+            "improvementPoint": "잠시 후 다시 시도해주세요",
+            "cautionTime": "현재 요청이 많습니다"
+          },
+          "todayAdvice": ["잠시 후 다시 요청해주세요"]
+        }
+        """;
+        }
     }
 }
