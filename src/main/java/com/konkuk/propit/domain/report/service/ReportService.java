@@ -266,7 +266,7 @@ public class ReportService {
             User user = userRepository.findById(userId)
                     .orElseThrow(() -> new BaseException(USER_NOT_FOUND));
 
-            List<TradeLog> logs = tradeLogRepository.findAllByUser(user);
+            List<TradeLog> logs = tradeLogRepository.findAllWithEmotionsByUser(user);
 
             if (logs.isEmpty()) {
                 throw new BaseException(TRADELOG_NOT_EXISTS);
