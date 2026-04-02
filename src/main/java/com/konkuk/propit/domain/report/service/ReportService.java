@@ -236,16 +236,21 @@ public class ReportService {
         Long userId = userDetails.getUserId();
 
         Optional<OverviewReportCache> cache = overviewReportCacheRepository.findByUserId(userId);
-
         if (cache.isPresent()) {
             try {
-                return objectMapper.readValue(
-                        cache.get().getReportJson(),
-                        OverviewReportResponse.class
-                );
+                return objectMapper.readValue(cache.get().getReportJson(), OverviewReportResponse.class);
             } catch (Exception e) {
                 overviewReportCacheRepository.delete(cache.get());
             }
+        }
+
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new BaseException(USER_NOT_FOUND));
+
+        List<TradeLog> logs = tradeLogRepository.findAllWithEmotionsByUser(user);
+
+        if (logs.isEmpty()) {
+            throw new BaseException(TRADELOG_NOT_EXISTS);
         }
 
         synchronized (this) {
@@ -261,15 +266,6 @@ public class ReportService {
                 } catch (Exception e) {
                     overviewReportCacheRepository.delete(cache2.get());
                 }
-            }
-
-            User user = userRepository.findById(userId)
-                    .orElseThrow(() -> new BaseException(USER_NOT_FOUND));
-
-            List<TradeLog> logs = tradeLogRepository.findAllWithEmotionsByUser(user);
-
-            if (logs.isEmpty()) {
-                throw new BaseException(TRADELOG_NOT_EXISTS);
             }
 
             // 1. summary
