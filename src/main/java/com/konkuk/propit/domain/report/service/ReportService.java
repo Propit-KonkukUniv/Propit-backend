@@ -116,17 +116,18 @@ public class ReportService {
                             Collectors.counting()
                     ));
 
-            List<DailyReportResponse.EmotionAnalysis> emotionAnalysisList =
-                    emotionCountMap.entrySet().stream()
-                            .map(entry ->
-                                    new DailyReportResponse.EmotionAnalysis(
-                                            entry.getKey(),
-                                            entry.getValue().intValue(),
-                                            entry.getKey() + " 감정이 자주 등장했습니다."
-                                    )
-                            ).toList();
+            Map<String, Double> emotionAvgProfitMap = logs.stream()
+                    .flatMap(log -> log.getTradeEmotions().stream()
+                            .map(te -> Map.entry(
+                                    te.getEmotion().getName(),
+                                    log.getProfitRate()
+                            )))
+                    .collect(Collectors.groupingBy(
+                            Map.Entry::getKey,
+                            Collectors.averagingDouble(Map.Entry::getValue)
+                    ));
 
-            String prompt = buildDailyAiPrompt(summary, emotionAnalysisList);
+            String prompt = buildDailyAiPrompt(summary, emotionCountMap, emotionAvgProfitMap);
 
             String aiRawJson = openAiService.requestAnalysis(prompt);
 
@@ -137,6 +138,15 @@ public class ReportService {
             } catch (Exception e) {
                 throw new BaseException(AI_RESPONSE_PARSE_FAILED);
             }
+
+            List<DailyReportResponse.EmotionAnalysis> emotionAnalysisList =
+                    aiResult.emotionAnalysis().stream()
+                            .map(ai -> new DailyReportResponse.EmotionAnalysis(
+                                    ai.emotion(),
+                                    emotionCountMap.getOrDefault(ai.emotion(), 0L).intValue(),
+                                    ai.analysis()
+                            ))
+                            .toList();
 
             DailyReportResponse response = new DailyReportResponse(
                     date,
@@ -172,12 +182,17 @@ public class ReportService {
 
     private String buildDailyAiPrompt(
             DailyReportResponse.Summary summary,
-            List<DailyReportResponse.EmotionAnalysis> emotions
+            Map<String, Long> emotionCountMap,
+            Map<String, Double> emotionAvgProfitMap
     ) {
 
-        String emotionText = emotions.stream()
-                .map(e -> e.emotion() + " : " + e.count() + "회")
-                .reduce("", (a, b) -> a + "\n" + b);
+        String emotionText = emotionCountMap.keySet().stream()
+                .map(emotion ->
+                        emotion + ": "
+                                + emotionCountMap.get(emotion) + "회, "
+                                + String.format("평균 %.2f%%", emotionAvgProfitMap.getOrDefault(emotion, 0.0))
+                )
+                .collect(Collectors.joining("\n"));
 
         return """
             다음은 사용자의 하루 투자 요약 데이터입니다.
