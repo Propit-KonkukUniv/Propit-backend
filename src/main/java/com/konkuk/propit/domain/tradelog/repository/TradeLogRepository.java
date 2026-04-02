@@ -9,11 +9,15 @@ import org.springframework.data.jpa.repository.Query;
 import java.util.List;
 import java.time.LocalDate;
 import java.util.Optional;
+import org.springframework.data.repository.query.Param;
 
 public interface TradeLogRepository extends JpaRepository<TradeLog, Long> {
 
-    // 특정 유저의 매매 기록 조회
-    List<TradeLog> findAllByUser(User user);
+    @Query("select distinct tl from TradeLog tl " +
+            "left join fetch tl.tradeEmotions te " +
+            "left join fetch te.emotion " +
+            "where tl.user = :user")
+    List<TradeLog> findAllWithEmotionsByUser(User user);
 
     // 최신순 조회
     List<TradeLog> findByUserOrderByCreatedAtDesc(User user);
