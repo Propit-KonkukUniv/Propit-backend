@@ -64,6 +64,10 @@ public class TradeLog {
     @OneToMany(mappedBy = "tradeLog", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<TradeEmotion> tradeEmotions = new ArrayList<>();
 
+    @Builder.Default
+    @OneToMany(mappedBy = "tradeLog", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<TradeImage> images = new ArrayList<>();
+
     @PrePersist
     protected void onCreate() {
         this.createdAt = LocalDateTime.now();
@@ -100,5 +104,10 @@ public class TradeLog {
         this.quantity = quantity;
         this.holdingDays = holdingDays;
         this.reason = reason;
+    }
+
+    public void addImage(TradeImage image) {
+        images.add(image);
+        image.assignToTradeLog(this);
     }
 }
