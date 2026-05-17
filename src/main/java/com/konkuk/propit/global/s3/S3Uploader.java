@@ -7,6 +7,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.springframework.web.multipart.MultipartFile;
+import software.amazon.awssdk.core.exception.SdkException;
 import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.GetObjectRequest;
@@ -27,14 +28,18 @@ public class S3Uploader {
     private String bucketName;
 
     public String getPresignedUrl(String key) {
-        GetObjectPresignRequest presignRequest = GetObjectPresignRequest.builder()
-                .signatureDuration(Duration.ofMinutes(15))
-                .getObjectRequest(GetObjectRequest.builder()
-                        .bucket(bucketName)
-                        .key(key)
-                        .build())
-                .build();
-        return s3Presigner.presignGetObject(presignRequest).url().toString();
+        try {
+            GetObjectPresignRequest presignRequest = GetObjectPresignRequest.builder()
+                    .signatureDuration(Duration.ofMinutes(15))
+                    .getObjectRequest(GetObjectRequest.builder()
+                            .bucket(bucketName)
+                            .key(key)
+                            .build())
+                    .build();
+            return s3Presigner.presignGetObject(presignRequest).url().toString();
+        } catch (SdkException e) {
+            throw new BaseException(ErrorCode.S3_UPLOAD_FAILED);
+        }
     }
 
     public String upload(MultipartFile file, String key) {
@@ -47,7 +52,7 @@ public class S3Uploader {
                             .build(),
                     RequestBody.fromInputStream(file.getInputStream(), file.getSize())
             );
-        } catch (IOException e) {
+        } catch (IOException | SdkException e) {
             throw new BaseException(ErrorCode.S3_UPLOAD_FAILED);
         }
         return key;
