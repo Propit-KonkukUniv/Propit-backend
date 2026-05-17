@@ -12,6 +12,7 @@ public enum SuccessCode {
     TRADELOG_DETAIL_SUCCESS(HttpStatus.OK.value(), "매매 기록 조회에 성공했습니다."),
     TRADELOG_LIST_SUCCESS(HttpStatus.OK.value(), "매매 기록 목록 조회에 성공했습니다."),
     TRADELOG_DELETE_SUCCESS(HttpStatus.OK.value(), "매매 기록 삭제에 성공했습니다."),
+    OCR_PARSE_SUCCESS(HttpStatus.OK.value(), "OCR 파싱에 성공했습니다."),
 
     //User
     USER_SIGNUP_SUCCESS(HttpStatus.CREATED.value(), "회원가입에 성공했습니다."),
@@ -20,6 +21,7 @@ public enum SuccessCode {
     //Report
     OVERVIEW_REPORT_SUCCESS(HttpStatus.OK.value(), "ai 누적 리포트 조회에 성공했습니다."),
     DAILY_REPORT_SUCCESS(HttpStatus.OK.value(), "ai 데일리 리포트 조회에 성공했습니다."),
+
 
     ;
 

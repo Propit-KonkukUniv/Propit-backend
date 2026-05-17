@@ -2,6 +2,7 @@ package com.konkuk.propit.domain.tradelog.controller;
 
 import com.konkuk.propit.domain.tradelog.dto.request.CreateTradeLogRequest;
 import com.konkuk.propit.domain.tradelog.dto.request.UpdateTradeLogRequest;
+import com.konkuk.propit.domain.tradelog.dto.response.OcrResult;
 import com.konkuk.propit.domain.tradelog.dto.response.TradeLogDetailResponse;
 import com.konkuk.propit.domain.tradelog.dto.response.TradeLogSummaryResponse;
 import com.konkuk.propit.domain.tradelog.service.TradeLogService;
@@ -9,6 +10,7 @@ import com.konkuk.propit.global.common.ApiResponse;
 import com.konkuk.propit.global.security.principal.CustomUserDetails;
 
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
@@ -24,6 +26,15 @@ import static com.konkuk.propit.global.response.SuccessCode.*;
 public class TradeLogController {
 
     private final TradeLogService tradeLogService;
+
+    @PostMapping(value = "/ocr", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<ApiResponse<OcrResult>> parseTradeImages(
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @RequestPart("files") List<MultipartFile> files
+    ) {
+        OcrResult result = tradeLogService.parseTradeImages(userDetails, files);
+        return ResponseEntity.ok(ApiResponse.success(OCR_PARSE_SUCCESS, result));
+    }
 
     // 생성
     @PostMapping()
