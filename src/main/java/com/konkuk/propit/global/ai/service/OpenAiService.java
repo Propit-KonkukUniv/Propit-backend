@@ -2,18 +2,18 @@ package com.konkuk.propit.global.ai.service;
 
 import com.konkuk.propit.global.ai.dto.request.OpenAiRequest;
 import com.konkuk.propit.global.ai.dto.response.OpenAiResponse;
-import java.io.IOException;
+import java.time.Duration;
 import java.util.ArrayList;
-import java.util.Base64;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
-import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.reactive.function.client.WebClient;
 
 import java.util.List;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class OpenAiService {
@@ -47,6 +47,7 @@ public class OpenAiService {
                     .bodyValue(request)
                     .retrieve()
                     .bodyToMono(OpenAiResponse.class)
+                    .timeout(Duration.ofSeconds(30))
                     .retryWhen(
                             reactor.util.retry.Retry.backoff(3, java.time.Duration.ofSeconds(3))
                     )
@@ -101,6 +102,7 @@ public class OpenAiService {
                     .bodyValue(request)
                     .retrieve()
                     .bodyToMono(OpenAiResponse.class)
+                    .timeout(Duration.ofSeconds(30))
                     .retryWhen(
                             reactor.util.retry.Retry.backoff(2, java.time.Duration.ofSeconds(3))
                     )
@@ -109,6 +111,7 @@ public class OpenAiService {
             return response.choices().get(0).message().content();
 
         } catch (Exception e) {
+            log.warn("GPT Vision 호출 실패", e);
             return "{}";
         }
     }
