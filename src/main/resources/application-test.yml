@@ -21,3 +21,11 @@ security:
 
 openai:
   api-key: test-openai-api-key
+
+cloud:
+  aws:
+    s3:
+      bucket: test-bucket
+    credentials:
+      access-key: test-access-key
+      secret-key: test-secret-key
