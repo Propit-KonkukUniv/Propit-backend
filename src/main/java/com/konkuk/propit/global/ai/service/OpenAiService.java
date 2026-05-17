@@ -2,10 +2,14 @@ package com.konkuk.propit.global.ai.service;
 
 import com.konkuk.propit.global.ai.dto.request.OpenAiRequest;
 import com.konkuk.propit.global.ai.dto.response.OpenAiResponse;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Base64;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
+import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.reactive.function.client.WebClient;
 
 import java.util.List;
@@ -51,7 +55,6 @@ public class OpenAiService {
             return response.choices().get(0).message().content();
 
         } catch (Exception e) {
-            // fallback (429 대비)
             return """
         {
           "aiInsight": {
@@ -64,4 +67,50 @@ public class OpenAiService {
         """;
         }
     }
+
+    public String analyzeImages(String systemPrompt, String userPrompt, List<String> imageUrls) {
+
+        WebClient webClient = webClientBuilder.baseUrl(apiUrl).build();
+
+        List<OpenAiRequest.ContentPart> contentParts = new ArrayList<>();
+        contentParts.add(OpenAiRequest.ContentPart.ofText(userPrompt));
+
+        for (String url : imageUrls) {
+            contentParts.add(
+                    new OpenAiRequest.ContentPart(
+                            "image_url",
+                            null,
+                            new OpenAiRequest.ImageUrl(url)
+                    )
+            );
+        }
+
+        OpenAiRequest request = new OpenAiRequest(
+                "gpt-4o-mini",
+                List.of(
+                        new OpenAiRequest.Message("system", systemPrompt),
+                        new OpenAiRequest.Message("user", contentParts)
+                ),
+                0.0
+        );
+
+        try {
+            OpenAiResponse response = webClient.post()
+                    .header("Authorization", "Bearer " + apiKey)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .bodyValue(request)
+                    .retrieve()
+                    .bodyToMono(OpenAiResponse.class)
+                    .retryWhen(
+                            reactor.util.retry.Retry.backoff(2, java.time.Duration.ofSeconds(3))
+                    )
+                    .block();
+
+            return response.choices().get(0).message().content();
+
+        } catch (Exception e) {
+            return "{}";
+        }
+    }
+
 }
