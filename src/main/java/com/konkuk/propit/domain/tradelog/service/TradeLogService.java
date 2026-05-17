@@ -139,13 +139,13 @@ public class TradeLogService {
     }
 
     private Long longOrNull(JsonNode node) {
-        if (node.isNull() || node.isMissingNode()) return null;
-        try { return node.asLong(); } catch (Exception e) { return null; }
+        if (node.isNull() || node.isMissingNode() || !node.isNumber()) return null;
+        return node.asLong();
     }
 
     private Integer intOrNull(JsonNode node) {
-        if (node.isNull() || node.isMissingNode()) return null;
-        try { return node.asInt(); } catch (Exception e) { return null; }
+        if (node.isNull() || node.isMissingNode() || !node.isNumber()) return null;
+        return node.asInt();
     }
 
     private String extractExt(String filename) {
