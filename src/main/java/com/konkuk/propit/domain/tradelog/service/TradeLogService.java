@@ -180,9 +180,13 @@ public class TradeLogService {
             for (String tag : request.emotionTags()) {
                 Emotion emotion = emotionRepository.findByName(tag)
                         .orElseThrow(() -> new BaseException(ErrorCode.EMOTION_NOT_FOUND));
-                tradeLog.getTradeEmotions().add(
-                        TradeEmotion.builder().tradeLog(tradeLog).emotion(emotion).build()
-                );
+
+                TradeEmotion tradeEmotion = TradeEmotion.builder()
+                        .tradeLog(tradeLog)
+                        .emotion(emotion)
+                        .build();
+
+                tradeLog.getTradeEmotions().add(tradeEmotion);
             }
         }
 
@@ -193,6 +197,7 @@ public class TradeLogService {
         }
 
         tradeLogRepository.save(tradeLog);
+
         overviewCacheRepository.deleteByUserId(user.getId());
         dailyReportCacheRepository.deleteByUserId(user.getId());
     }
@@ -241,9 +246,12 @@ public class TradeLogService {
 
     @Transactional(readOnly = true)
     public List<TradeLogSummaryResponse> getTradeLogs(CustomUserDetails userDetails) {
-        return tradeLogRepository
-                .findByUserId(userDetails.getUserId(), Sort.by(Sort.Direction.DESC, "sellDate"))
-                .stream()
+        List<TradeLog> tradeLogs = tradeLogRepository.findByUserId(
+                userDetails.getUserId(),
+                Sort.by(Sort.Direction.DESC, "sellDate")
+        );
+
+        return tradeLogs.stream()
                 .map(TradeLogSummaryResponse::from)
                 .toList();
     }
@@ -252,7 +260,9 @@ public class TradeLogService {
         TradeLog tradeLog = tradeLogRepository.findByIdAndUserId(
                 tradeLogId, userDetails.getUserId()
         ).orElseThrow(() -> new BaseException(ErrorCode.TRADELOG_NOT_FOUND));
+
         tradeLogRepository.delete(tradeLog);
+
         overviewCacheRepository.deleteByUserId(userDetails.getUserId());
         dailyReportCacheRepository.deleteByUserId(userDetails.getUserId());
     }
