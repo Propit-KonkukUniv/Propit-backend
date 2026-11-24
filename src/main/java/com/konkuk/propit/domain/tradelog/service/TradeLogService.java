@@ -25,6 +25,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -46,6 +47,9 @@ public class TradeLogService {
     private final OpenAiService openAiService;
     private final ObjectMapper objectMapper;
 
+    // DB를 쓰지 않으므로 트랜잭션을 걸지 않는다.
+    // 걸려 있으면 S3 업로드·GPT Vision 호출(수십 초) 동안 DB 커넥션을 잡고 있게 된다.
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
     public OcrResult parseTradeImages(CustomUserDetails userDetails, List<MultipartFile> files) {
         Long userId = userDetails.getUserId();
 
