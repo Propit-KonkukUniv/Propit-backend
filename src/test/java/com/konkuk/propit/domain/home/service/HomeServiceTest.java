@@ -116,9 +116,36 @@ class HomeServiceTest {
         assertThat(home.cumulativeReport().exists()).isTrue();
     }
 
+    @Test
+    void 감정_없는_매매일지만_있어도_홈을_보여준다() {
+        createTradeLog(LocalDate.now(), null);
+
+        HomeResponse home = homeService.getHome(userDetails);
+
+        assertThat(home.todayMood().exists()).isTrue();
+        assertThat(home.todayMood().mood()).isEqualTo("UNKNOWN");
+        assertThat(home.dailyReport().exists()).isTrue();
+        assertThat(home.dailyReport().data().tradeCount()).isEqualTo(1);
+    }
+
+    @Test
+    void 일일_리포트는_감정_없는_매매일지까지_센다() {
+        createTradeLog(LocalDate.now());
+        createTradeLog(LocalDate.now(), null);
+
+        HomeResponse home = homeService.getHome(userDetails);
+
+        assertThat(home.dailyReport().data().tradeCount()).isEqualTo(2);
+        assertThat(home.cumulativeReport().data().totalTradeCount()).isEqualTo(2);
+    }
+
     private void createTradeLog(LocalDate sellDate) {
+        createTradeLog(sellDate, List.of(EMOTION));
+    }
+
+    private void createTradeLog(LocalDate sellDate, List<String> emotionTags) {
         tradeLogService.createTradeLog(userDetails, new CreateTradeLogRequest(
-                sellDate, "삼성전자", "반도체", 70000L, 77000L, 10, 3, null, List.of(EMOTION), null
+                sellDate, "삼성전자", "반도체", 70000L, 77000L, 10, 3, null, emotionTags, null
         ));
     }
 }

@@ -34,6 +34,10 @@ public interface TradeLogRepository extends JpaRepository<TradeLog, Long> {
 
     List<TradeLog> findByUserId(Long userId, Sort sort);
 
-    @Query("select tl from TradeLog tl join fetch tl.tradeEmotions where tl.user = :user and tl.sellDate = :date")
-    List<TradeLog> findWithEmotions(User user, LocalDate date);
+    // 감정 태그가 없는 매매일지도 일일 리포트 통계에 포함되도록 left join을 쓴다
+    @Query("select distinct tl from TradeLog tl " +
+            "left join fetch tl.tradeEmotions te " +
+            "left join fetch te.emotion " +
+            "where tl.user = :user and tl.sellDate = :date")
+    List<TradeLog> findWithEmotions(@Param("user") User user, @Param("date") LocalDate date);
 }
