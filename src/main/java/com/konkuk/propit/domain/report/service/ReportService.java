@@ -15,12 +15,14 @@ import com.konkuk.propit.domain.user.entity.User;
 import com.konkuk.propit.domain.user.repository.UserRepository;
 import com.konkuk.propit.global.ai.service.OpenAiService;
 import com.konkuk.propit.global.exception.BaseException;
+import com.konkuk.propit.global.lock.RedisLock;
 import com.konkuk.propit.global.security.principal.CustomUserDetails;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Duration;
 import java.time.LocalDate;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -32,12 +34,17 @@ import static com.konkuk.propit.global.exception.code.ErrorCode.*;
 @RequiredArgsConstructor
 public class ReportService {
 
+    // AI 호출 최악 시간(재시도 포함 약 2분 30초)보다 길게 잡는다
+    private static final Duration LOCK_TTL = Duration.ofMinutes(3);
+    private static final Duration LOCK_WAIT = Duration.ofSeconds(60);
+
     private final TradeLogRepository tradeLogRepository;
     private final UserRepository userRepository;
     private final OpenAiService openAiService;
     private final ObjectMapper objectMapper;
     private final OverviewReportCacheRepository overviewReportCacheRepository;
     private final DailyReportCacheRepository dailyReportCacheRepository;
+    private final RedisLock redisLock;
 
     @Transactional
     public DailyReportResponse generateDailyReport(CustomUserDetails userDetails, LocalDate date) {
@@ -58,7 +65,9 @@ public class ReportService {
             }
         }
 
-        synchronized (this) {
+        // 같은 유저·같은 날짜 요청끼리만 순서대로 처리한다
+        String lockKey = "report:daily:" + userId + ":" + date;
+        return redisLock.executeWithLock(lockKey, LOCK_TTL, LOCK_WAIT, () -> {
 
             Optional<DailyReportCache> cache2 =
                     dailyReportCacheRepository.findByUserIdAndDate(userId, date);
@@ -177,7 +186,7 @@ public class ReportService {
             }
 
             return response;
-        }
+        });
     }
 
     private String buildDailyAiPrompt(
@@ -253,7 +262,9 @@ public class ReportService {
             throw new BaseException(TRADELOG_NOT_EXISTS);
         }
 
-        synchronized (this) {
+        // 같은 유저 요청끼리만 순서대로 처리한다
+        String lockKey = "report:overview:" + userId;
+        return redisLock.executeWithLock(lockKey, LOCK_TTL, LOCK_WAIT, () -> {
 
             Optional<OverviewReportCache> cache2 = overviewReportCacheRepository.findByUserId(userId);
 
@@ -302,7 +313,7 @@ public class ReportService {
             }
 
             return response;
-        }
+        });
     }
 
     private OverviewReportResponse.Summary calculateSummary(List<TradeLog> logs) {

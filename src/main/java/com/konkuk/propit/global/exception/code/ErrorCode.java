@@ -9,6 +9,7 @@ public enum ErrorCode {
     // COMMON
     INVALID_INPUT(HttpStatus.BAD_REQUEST, "잘못된 요청입니다."),
     INTERNAL_SERVER_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "서버 오류입니다."),
+    LOCK_WAIT_TIMEOUT(HttpStatus.CONFLICT, "같은 요청을 처리하고 있습니다. 잠시 후 다시 시도해주세요."),
 
     // JWT
     INVALID_TOKEN(HttpStatus.UNAUTHORIZED, "유효하지 않은 토큰입니다."),
