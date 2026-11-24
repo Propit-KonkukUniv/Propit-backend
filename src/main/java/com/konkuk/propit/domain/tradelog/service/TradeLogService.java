@@ -4,8 +4,6 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.konkuk.propit.domain.emotion.entity.Emotion;
 import com.konkuk.propit.domain.emotion.repository.EmotionRepository;
-import com.konkuk.propit.domain.report.repository.DailyReportCacheRepository;
-import com.konkuk.propit.domain.report.repository.OverviewReportCacheRepository;
 import com.konkuk.propit.domain.tradelog.dto.request.CreateTradeLogRequest;
 import com.konkuk.propit.domain.tradelog.dto.request.UpdateTradeLogRequest;
 import com.konkuk.propit.domain.tradelog.dto.response.OcrResult;
@@ -44,8 +42,6 @@ public class TradeLogService {
     private final TradeLogRepository tradeLogRepository;
     private final EmotionRepository emotionRepository;
     private final UserRepository userRepository;
-    private final OverviewReportCacheRepository overviewCacheRepository;
-    private final DailyReportCacheRepository dailyReportCacheRepository;
     private final S3Uploader s3Uploader;
     private final OpenAiService openAiService;
     private final ObjectMapper objectMapper;
@@ -162,6 +158,10 @@ public class TradeLogService {
         User user = userRepository.findById(userDetails.getUserId())
                 .orElseThrow(() -> new BaseException(ErrorCode.USER_NOT_FOUND));
 
+        // 매매일지 INSERT보다 먼저 올린다. INSERT가 FK 검사로 user 행에 공유 락을 걸기 때문에,
+        // 순서가 반대면 같은 유저의 동시 등록끼리 데드락이 날 수 있다.
+        userRepository.increaseTradeLogVersion(user.getId());
+
         TradeLog tradeLog = TradeLog.builder()
                 .user(user)
                 .sellDate(request.sellDate())
@@ -197,9 +197,6 @@ public class TradeLogService {
         }
 
         tradeLogRepository.save(tradeLog);
-
-        overviewCacheRepository.deleteByUserId(user.getId());
-        dailyReportCacheRepository.deleteByUserId(user.getId());
     }
 
     public void updateTradeLog(CustomUserDetails userDetails, Long tradeLogId, UpdateTradeLogRequest request) {
@@ -207,6 +204,8 @@ public class TradeLogService {
         TradeLog tradeLog = tradeLogRepository.findByIdAndUserId(
                 tradeLogId, userDetails.getUserId()
         ).orElseThrow(() -> new BaseException(ErrorCode.TRADELOG_NOT_FOUND));
+
+        userRepository.increaseTradeLogVersion(userDetails.getUserId());
 
         tradeLog.update(
                 request.sellDate(),
@@ -231,9 +230,6 @@ public class TradeLogService {
                 );
             }
         }
-
-        overviewCacheRepository.deleteByUserId(userDetails.getUserId());
-        dailyReportCacheRepository.deleteByUserId(userDetails.getUserId());
     }
 
     @Transactional(readOnly = true)
@@ -261,9 +257,8 @@ public class TradeLogService {
                 tradeLogId, userDetails.getUserId()
         ).orElseThrow(() -> new BaseException(ErrorCode.TRADELOG_NOT_FOUND));
 
-        tradeLogRepository.delete(tradeLog);
+        userRepository.increaseTradeLogVersion(userDetails.getUserId());
 
-        overviewCacheRepository.deleteByUserId(userDetails.getUserId());
-        dailyReportCacheRepository.deleteByUserId(userDetails.getUserId());
+        tradeLogRepository.delete(tradeLog);
     }
 }

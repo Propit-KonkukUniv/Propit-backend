@@ -29,4 +29,13 @@ public class OverviewReportCache {
 
     @Column(columnDefinition = "TEXT", nullable = false)
     private String reportJson;
+
+    // 이 리포트를 만들 때의 User.tradeLogVersion
+    @Column(nullable = false)
+    private long version;
+
+    public void update(String reportJson, long version) {
+        this.reportJson = reportJson;
+        this.version = version;
+    }
 }

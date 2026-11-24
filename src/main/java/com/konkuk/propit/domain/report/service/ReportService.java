@@ -106,7 +106,7 @@ public class ReportService {
 
         // 캐시 저장은 자기 트랜잭션에서 끝나므로, 실패해도 응답에는 영향이 없다
         try {
-            reportCacheService.saveDaily(userId, date, response);
+            reportCacheService.saveDaily(userId, date, stats.version(), response);
         } catch (Exception e) {
             log.warn("캐시 저장 실패", e);
         }
@@ -144,8 +144,11 @@ public class ReportService {
 
     private DailyStats loadDailyStats(Long userId, LocalDate date) {
 
+        // 버전을 매매 내역보다 먼저 읽는다. 그사이 매매일지가 바뀌어도
+        // 캐시에는 옛 버전이 붙어서 다음 조회 때 새로 만들어진다.
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new BaseException(USER_NOT_FOUND));
+        long version = user.getTradeLogVersion();
 
         List<TradeLog> logs =
                 tradeLogRepository.findWithEmotions(user, date);
@@ -197,10 +200,11 @@ public class ReportService {
                         Collectors.averagingDouble(Map.Entry::getValue)
                 ));
 
-        return new DailyStats(summary, emotionCountMap, emotionAvgProfitMap);
+        return new DailyStats(version, summary, emotionCountMap, emotionAvgProfitMap);
     }
 
     private record DailyStats(
+            long version,
             DailyReportResponse.Summary summary,
             Map<String, Long> emotionCountMap,
             Map<String, Double> emotionAvgProfitMap
@@ -309,7 +313,7 @@ public class ReportService {
 
         // 캐시 저장은 자기 트랜잭션에서 끝나므로, 실패해도 응답에는 영향이 없다
         try {
-            reportCacheService.saveOverview(userId, response);
+            reportCacheService.saveOverview(userId, stats.version(), response);
         } catch (Exception e) {
             log.warn("캐시 저장 실패", e);
         }
@@ -319,8 +323,10 @@ public class ReportService {
 
     private OverviewStats loadOverviewStats(Long userId) {
 
+        // 버전을 매매 내역보다 먼저 읽는다 (loadDailyStats 참고)
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new BaseException(USER_NOT_FOUND));
+        long version = user.getTradeLogVersion();
 
         List<TradeLog> logs = tradeLogRepository.findAllWithEmotionsByUser(user);
 
@@ -329,6 +335,7 @@ public class ReportService {
         }
 
         return new OverviewStats(
+                version,
                 calculateSummary(logs),     // 1. summary
                 calculateTrend(logs),       // 2. trend
                 calculateSector(logs),      // 3. sector
@@ -337,6 +344,7 @@ public class ReportService {
     }
 
     private record OverviewStats(
+            long version,
             OverviewReportResponse.Summary summary,
             List<OverviewReportResponse.ProfitRatePoint> trend,
             List<OverviewReportResponse.SectorPerformance> sector,
