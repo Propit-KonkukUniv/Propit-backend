@@ -74,15 +74,14 @@ public class ReportService {
 
         String prompt = buildDailyAiPrompt(stats.summary(), stats.emotionCountMap(), stats.emotionAvgProfitMap());
 
-        String aiRawJson = openAiService.requestAnalysis(prompt);
+        Optional<String> aiRawJson = openAiService.requestAnalysis(prompt);
 
-        DailyAiResult aiResult;
-
-        try {
-            aiResult = objectMapper.readValue(aiRawJson, DailyAiResult.class);
-        } catch (Exception e) {
-            throw new BaseException(AI_RESPONSE_PARSE_FAILED);
+        if (aiRawJson.isEmpty()) {
+            // AI 호출에 실패하면 통계만 담아 응답하고 캐시에는 저장하지 않는다. 다음 요청에서 다시 시도한다.
+            return delayedDailyReport(date, stats.summary());
         }
+
+        DailyAiResult aiResult = parseDailyAiResult(aiRawJson.get());
 
         List<DailyReportResponse.EmotionAnalysis> emotionAnalysisList =
                 aiResult.emotionAnalysis().stream()
@@ -107,14 +106,40 @@ public class ReportService {
 
         // 캐시 저장은 자기 트랜잭션에서 끝나므로, 실패해도 응답에는 영향이 없다
         try {
-            if (!aiResult.aiInsight().strengthPattern().equals("AI 분석 지연")) {
-                reportCacheService.saveDaily(userId, date, response);
-            }
+            reportCacheService.saveDaily(userId, date, response);
         } catch (Exception e) {
             log.warn("캐시 저장 실패", e);
         }
 
         return response;
+    }
+
+    private DailyAiResult parseDailyAiResult(String aiRawJson) {
+        DailyAiResult aiResult;
+        try {
+            aiResult = objectMapper.readValue(aiRawJson, DailyAiResult.class);
+        } catch (Exception e) {
+            throw new BaseException(AI_RESPONSE_PARSE_FAILED);
+        }
+        // 필수 항목이 빠진 응답은 파싱 실패로 본다
+        if (aiResult.emotionAnalysis() == null || aiResult.aiInsight() == null) {
+            throw new BaseException(AI_RESPONSE_PARSE_FAILED);
+        }
+        return aiResult;
+    }
+
+    private DailyReportResponse delayedDailyReport(LocalDate date, DailyReportResponse.Summary summary) {
+        return new DailyReportResponse(
+                date,
+                summary,
+                List.of(),
+                new DailyReportResponse.AiInsight(
+                        "AI 분석 지연",
+                        "잠시 후 다시 시도해주세요",
+                        "현재 요청이 많습니다"
+                ),
+                List.of("잠시 후 다시 요청해주세요")
+        );
     }
 
     private DailyStats loadDailyStats(Long userId, LocalDate date) {
@@ -259,7 +284,20 @@ public class ReportService {
         OverviewStats stats = transactionTemplate.execute(status -> loadOverviewStats(userId));
 
         // 4. AI & 전략
-        OverviewAiResult aiResult = generateAiResult(stats.aiPrompt());
+        Optional<OverviewAiResult> aiResultOrEmpty = generateAiResult(stats.aiPrompt());
+
+        if (aiResultOrEmpty.isEmpty()) {
+            // AI 호출에 실패하면 통계만 담아 응답하고 캐시에는 저장하지 않는다. 다음 요청에서 다시 시도한다.
+            return new OverviewReportResponse(
+                    stats.summary(),
+                    stats.trend(),
+                    null,
+                    stats.sector(),
+                    List.of()
+            );
+        }
+
+        OverviewAiResult aiResult = aiResultOrEmpty.get();
 
         OverviewReportResponse response = new OverviewReportResponse(
                 stats.summary(),
@@ -404,15 +442,25 @@ public class ReportService {
                 .toList();
     }
 
-    private OverviewAiResult generateAiResult(String prompt) {
+    private Optional<OverviewAiResult> generateAiResult(String prompt) {
 
-        String aiRaw = openAiService.requestAnalysis(prompt);
+        Optional<String> aiRaw = openAiService.requestAnalysis(prompt);
 
+        if (aiRaw.isEmpty()) {
+            return Optional.empty();
+        }
+
+        OverviewAiResult aiResult;
         try {
-            return objectMapper.readValue(aiRaw, OverviewAiResult.class);
+            aiResult = objectMapper.readValue(aiRaw.get(), OverviewAiResult.class);
         } catch (Exception e) {
             throw new BaseException(AI_RESPONSE_PARSE_FAILED);
         }
+        // 필수 항목이 빠진 응답은 파싱 실패로 본다. 그대로 두면 빈 리포트가 캐시에 남는다.
+        if (aiResult.analysis() == null || aiResult.strategies() == null) {
+            throw new BaseException(AI_RESPONSE_PARSE_FAILED);
+        }
+        return Optional.of(aiResult);
     }
 
     private String buildOverviewAiPrompt(List<TradeLog> logs) {

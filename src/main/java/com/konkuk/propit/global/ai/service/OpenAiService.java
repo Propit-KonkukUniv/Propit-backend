@@ -18,6 +18,7 @@ import org.springframework.web.reactive.function.client.WebClientResponseExcepti
 import reactor.util.retry.Retry;
 
 import java.util.List;
+import java.util.Optional;
 
 @Slf4j
 @Service
@@ -48,7 +49,10 @@ public class OpenAiService {
 
     private final WebClient.Builder webClientBuilder;
 
-    public String requestAnalysis(String prompt) {
+    /**
+     * @return AI 응답 본문. 호출에 실패하면 비어 있다.
+     */
+    public Optional<String> requestAnalysis(String prompt) {
 
         OpenAiRequest request = new OpenAiRequest(
                 "gpt-4.1-mini",
@@ -63,20 +67,11 @@ public class OpenAiService {
         try {
             OpenAiResponse response = call(request);
 
-            return response.choices().get(0).message().content();
+            return Optional.of(response.choices().get(0).message().content());
 
         } catch (Exception e) {
             log.warn("GPT 분석 호출 실패", e);
-            return """
-        {
-          "aiInsight": {
-            "strengthPattern": "AI 분석 지연",
-            "improvementPoint": "잠시 후 다시 시도해주세요",
-            "cautionTime": "현재 요청이 많습니다"
-          },
-          "todayAdvice": ["잠시 후 다시 요청해주세요"]
-        }
-        """;
+            return Optional.empty();
         }
     }
 
