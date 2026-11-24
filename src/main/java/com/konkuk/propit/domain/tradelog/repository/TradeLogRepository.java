@@ -22,7 +22,13 @@ public interface TradeLogRepository extends JpaRepository<TradeLog, Long> {
     // 최신순 조회
     List<TradeLog> findByUserOrderByCreatedAtDesc(User user);
 
-    List<TradeLog> findByUserAndSellDate(User user, LocalDate sellDate);
+    // 감정 태그까지 한 번에 가져온다. 트랜잭션 밖에서 감정을 읽어도 지연 로딩이 일어나지 않는다.
+    // 감정이 없는 매매일지도 나와야 해서 left join을 쓴다.
+    @Query("select distinct tl from TradeLog tl " +
+            "left join fetch tl.tradeEmotions te " +
+            "left join fetch te.emotion " +
+            "where tl.user = :user and tl.sellDate = :sellDate")
+    List<TradeLog> findWithEmotionsByUserAndSellDate(@Param("user") User user, @Param("sellDate") LocalDate sellDate);
 
     Optional<TradeLog> findByIdAndUserId(Long id, Long userId);
 

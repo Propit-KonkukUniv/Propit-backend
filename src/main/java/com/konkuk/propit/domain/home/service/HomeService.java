@@ -36,8 +36,10 @@ public class HomeService {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new BaseException(USER_NOT_FOUND));
 
+        // getHome은 트랜잭션 없이 실행된다. AI를 호출하는 리포트 생성까지 부르기 때문에,
+        // 트랜잭션을 걸면 AI 호출 동안 DB 커넥션을 잡게 된다. 그래서 감정까지 미리 가져온다.
         List<TradeLog> todayLogs =
-                tradeLogRepository.findByUserAndSellDate(user, today);
+                tradeLogRepository.findWithEmotionsByUserAndSellDate(user, today);
 
         return new HomeResponse(
                 buildTodayMood(todayLogs),
