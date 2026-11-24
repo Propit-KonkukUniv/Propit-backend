@@ -25,6 +25,10 @@ public class User {
     @Column(nullable = false)
     private String nickname;
 
+    // 매매일지가 추가·수정·삭제될 때마다 1씩 올라간다. 리포트 캐시가 최신인지 판단할 때 쓴다.
+    @Column(nullable = false)
+    private long tradeLogVersion;
+
     private LocalDateTime createdAt;
 
     private LocalDateTime updatedAt;
