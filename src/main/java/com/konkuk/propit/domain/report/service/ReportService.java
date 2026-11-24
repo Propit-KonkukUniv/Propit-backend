@@ -30,9 +30,10 @@ import static com.konkuk.propit.global.exception.code.ErrorCode.*;
 @RequiredArgsConstructor
 public class ReportService {
 
-    // AI 호출 최악 시간(재시도 포함 약 2분 30초)보다 길게 잡는다
-    private static final Duration LOCK_TTL = Duration.ofMinutes(3);
-    private static final Duration LOCK_WAIT = Duration.ofSeconds(60);
+    // AI 호출 도중에 락이 풀리지 않도록 최대 호출 시간보다 넉넉하게 잡는다
+    private static final Duration LOCK_TTL = OpenAiService.MAX_CALL_DURATION.plusSeconds(30);
+    // 앞 요청의 AI 호출이 끝날 때까지 기다렸다가 그 결과(캐시)를 받아 간다
+    private static final Duration LOCK_WAIT = OpenAiService.MAX_CALL_DURATION.plusSeconds(10);
 
     private final TradeLogRepository tradeLogRepository;
     private final UserRepository userRepository;
