@@ -62,11 +62,61 @@ public class ReportService {
                 return cachedAfterWait.get();
             }
 
-            return transactionTemplate.execute(status -> createDailyReport(userId, date));
+            return createDailyReport(userId, date);
         });
     }
 
     private DailyReportResponse createDailyReport(Long userId, LocalDate date) {
+
+        // DB 조회와 통계 계산만 트랜잭션 안에서 하고, AI 호출 동안에는 DB 커넥션을 잡지 않는다
+        DailyStats stats = transactionTemplate.execute(status -> loadDailyStats(userId, date));
+
+        String prompt = buildDailyAiPrompt(stats.summary(), stats.emotionCountMap(), stats.emotionAvgProfitMap());
+
+        String aiRawJson = openAiService.requestAnalysis(prompt);
+
+        DailyAiResult aiResult;
+
+        try {
+            aiResult = objectMapper.readValue(aiRawJson, DailyAiResult.class);
+        } catch (Exception e) {
+            throw new BaseException(AI_RESPONSE_PARSE_FAILED);
+        }
+
+        List<DailyReportResponse.EmotionAnalysis> emotionAnalysisList =
+                aiResult.emotionAnalysis().stream()
+                        .map(ai -> new DailyReportResponse.EmotionAnalysis(
+                                ai.emotion(),
+                                stats.emotionCountMap().getOrDefault(ai.emotion(), 0L).intValue(),
+                                ai.analysis()
+                        ))
+                        .toList();
+
+        DailyReportResponse response = new DailyReportResponse(
+                date,
+                stats.summary(),
+                emotionAnalysisList,
+                new DailyReportResponse.AiInsight(
+                        aiResult.aiInsight().strengthPattern(),
+                        aiResult.aiInsight().improvementPoint(),
+                        aiResult.aiInsight().cautionTime()
+                ),
+                aiResult.todayAdvice()
+        );
+
+        // 캐시 저장은 자기 트랜잭션에서 끝나므로, 실패해도 응답에는 영향이 없다
+        try {
+            if (!aiResult.aiInsight().strengthPattern().equals("AI 분석 지연")) {
+                reportCacheService.saveDaily(userId, date, response);
+            }
+        } catch (Exception e) {
+            log.warn("캐시 저장 실패", e);
+        }
+
+        return response;
+    }
+
+    private DailyStats loadDailyStats(Long userId, LocalDate date) {
 
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new BaseException(USER_NOT_FOUND));
@@ -121,49 +171,14 @@ public class ReportService {
                         Collectors.averagingDouble(Map.Entry::getValue)
                 ));
 
-        String prompt = buildDailyAiPrompt(summary, emotionCountMap, emotionAvgProfitMap);
-
-        String aiRawJson = openAiService.requestAnalysis(prompt);
-
-        DailyAiResult aiResult;
-
-        try {
-            aiResult = objectMapper.readValue(aiRawJson, DailyAiResult.class);
-        } catch (Exception e) {
-            throw new BaseException(AI_RESPONSE_PARSE_FAILED);
-        }
-
-        List<DailyReportResponse.EmotionAnalysis> emotionAnalysisList =
-                aiResult.emotionAnalysis().stream()
-                        .map(ai -> new DailyReportResponse.EmotionAnalysis(
-                                ai.emotion(),
-                                emotionCountMap.getOrDefault(ai.emotion(), 0L).intValue(),
-                                ai.analysis()
-                        ))
-                        .toList();
-
-        DailyReportResponse response = new DailyReportResponse(
-                date,
-                summary,
-                emotionAnalysisList,
-                new DailyReportResponse.AiInsight(
-                        aiResult.aiInsight().strengthPattern(),
-                        aiResult.aiInsight().improvementPoint(),
-                        aiResult.aiInsight().cautionTime()
-                ),
-                aiResult.todayAdvice()
-        );
-
-        try {
-            if (!aiResult.aiInsight().strengthPattern().equals("AI 분석 지연")) {
-                reportCacheService.saveDaily(userId, date, response);
-            }
-        } catch (Exception e) {
-            log.warn("캐시 저장 실패", e);
-        }
-
-        return response;
+        return new DailyStats(summary, emotionCountMap, emotionAvgProfitMap);
     }
+
+    private record DailyStats(
+            DailyReportResponse.Summary summary,
+            Map<String, Long> emotionCountMap,
+            Map<String, Double> emotionAvgProfitMap
+    ) {}
 
     private String buildDailyAiPrompt(
             DailyReportResponse.Summary summary,
@@ -233,11 +248,37 @@ public class ReportService {
                 return cachedAfterWait.get();
             }
 
-            return transactionTemplate.execute(status -> createOverviewReport(userId));
+            return createOverviewReport(userId);
         });
     }
 
     private OverviewReportResponse createOverviewReport(Long userId) {
+
+        // DB 조회와 통계 계산만 트랜잭션 안에서 하고, AI 호출 동안에는 DB 커넥션을 잡지 않는다
+        OverviewStats stats = transactionTemplate.execute(status -> loadOverviewStats(userId));
+
+        // 4. AI & 전략
+        OverviewAiResult aiResult = generateAiResult(stats.aiPrompt());
+
+        OverviewReportResponse response = new OverviewReportResponse(
+                stats.summary(),
+                stats.trend(),
+                aiResult.analysis(),
+                stats.sector(),
+                aiResult.strategies()
+        );
+
+        // 캐시 저장은 자기 트랜잭션에서 끝나므로, 실패해도 응답에는 영향이 없다
+        try {
+            reportCacheService.saveOverview(userId, response);
+        } catch (Exception e) {
+            log.warn("캐시 저장 실패", e);
+        }
+
+        return response;
+    }
+
+    private OverviewStats loadOverviewStats(Long userId) {
 
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new BaseException(USER_NOT_FOUND));
@@ -248,34 +289,20 @@ public class ReportService {
             throw new BaseException(TRADELOG_NOT_EXISTS);
         }
 
-        // 1. summary
-        OverviewReportResponse.Summary summary = calculateSummary(logs);
-
-        // 2. trend
-        List<OverviewReportResponse.ProfitRatePoint> trend = calculateTrend(logs);
-
-        // 3. sector
-        List<OverviewReportResponse.SectorPerformance> sector = calculateSector(logs);
-
-        // 4. AI & 전략
-        OverviewAiResult aiResult = generateAiResult(logs);
-
-        OverviewReportResponse response = new OverviewReportResponse(
-                summary,
-                trend,
-                aiResult.analysis(),
-                sector,
-                aiResult.strategies()
+        return new OverviewStats(
+                calculateSummary(logs),     // 1. summary
+                calculateTrend(logs),       // 2. trend
+                calculateSector(logs),      // 3. sector
+                buildOverviewAiPrompt(logs)
         );
-
-        try {
-            reportCacheService.saveOverview(userId, response);
-        } catch (Exception e) {
-            log.warn("캐시 저장 실패", e);
-        }
-
-        return response;
     }
+
+    private record OverviewStats(
+            OverviewReportResponse.Summary summary,
+            List<OverviewReportResponse.ProfitRatePoint> trend,
+            List<OverviewReportResponse.SectorPerformance> sector,
+            String aiPrompt
+    ) {}
 
     private OverviewReportResponse.Summary calculateSummary(List<TradeLog> logs) {
 
@@ -376,9 +403,7 @@ public class ReportService {
                 .toList();
     }
 
-    private OverviewAiResult generateAiResult(List<TradeLog> logs) {
-
-        String prompt = buildOverviewAiPrompt(logs);
+    private OverviewAiResult generateAiResult(String prompt) {
 
         String aiRaw = openAiService.requestAnalysis(prompt);
 
